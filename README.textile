@@ -1,0 +1,20 @@
+h1. Condominios
+
+A Rails plugin that makes direct uploads to multiple cloud storage providers easy.
+Only supports "XMLHttpRequest Level 2":http://en.wikipedia.org/wiki/XMLHttpRequest capable browsers and cloud providers that have a "RESTful API":http://en.wikipedia.org/wiki/Representational_state_transfer with "CORS":http://en.wikipedia.org/wiki/Cross-origin_resource_sharing support.
+
+Why compromise?
+
+Get started now: @gem install condo@
+
+
+h2. License
+
+GNU Lesser General Public License v3 (LGPL version 3)
+
+
+h2. Usage
+
+Coming Soon!
+
+
