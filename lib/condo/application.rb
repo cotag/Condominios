@@ -6,6 +6,7 @@ module Condo
 		
 		#
 		# The following data needs to be stored in any backend
+		# => provider_namespace (for handling multiple upload controllers, defaults to global)
 		# => provider_name		(amazon, rackspace, google, azure etc)
 		# => provider_location	(US West (Oregon) Region, Asia Pacific (Singapore) Region etc)
 		# => user_id			(the identifier for the current user as a string)

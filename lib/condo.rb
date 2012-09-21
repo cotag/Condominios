@@ -1,7 +1,7 @@
 require 'condo/engine'
-require 'condo/application'
 require 'condo/errors'
-
+require 'condo/application'
+require 'condo/configuration'
 
 Dir[File.join(File.dirname(__FILE__), 'condo', 'strata', '*.rb')].each do |file|
 	require File.basename(file, File.extname(file))
@@ -26,7 +26,7 @@ module Condo
 			# => mutually exclusive so can send back either the parts signature from show or a bucket creation signature and the upload_id
 			#
 			resident = current_resident
-			upload = backend.check_exists({
+			upload = condo_backend.check_exists({
 				:user_id => resident,
 				:file_name => (instance_eval &@@callbacks[:sanitize_filename]),
 				:file_size => params[:upload][:file_size].to_i,
@@ -69,7 +69,7 @@ module Condo
 				
 				
 				if !!valid
-					set_residence(nil) if @@callbacks[:dynamic_residence].present?
+					set_residence(nil, {:resident => resident, :params => params[:upload]}) if condo_config.dynamic_provider_present?(@@namespace || :global)
 					residence = current_residence
 					
 					#
@@ -85,7 +85,7 @@ module Condo
 					# Save a reference to this upload in the database
 					# => This should throw an error on failure
 					#
-					upload = backend.add_entry(params[:upload].merge :provider_name => residence.name, :provider_location => residence.location)
+					upload = condo_backend.add_entry(params[:upload].merge :provider_name => residence.name, :provider_location => residence.location)
 					render :json => request.merge :upload_id => upload.id
 					
 				elsif errors.is_a Hash
@@ -135,12 +135,12 @@ module Condo
 			#
 			if params[:resumable_id]
 				upload = current_upload
-				@current_upload = backend.update_entry :upload_id => params[:upload_id], :resumable_id => params[:resumable_id]
+				@current_upload = condo_backend.update_entry :upload_id => params[:upload_id], :resumable_id => params[:resumable_id]
 				edit
 			else
 				response = instance_exec current_upload, &@@callbacks[:upload_complete]
 				if !!response
-					backend.remove_entry :upload_id => params[:upload_id]
+					condo_backend.remove_entry :upload_id => params[:upload_id]
 					render :json => {:upload_id => upload.id}
 				else
 					render :nothing => true, :status => :not_acceptable
@@ -155,7 +155,7 @@ module Condo
 			#
 			response = instance_exec current_upload, &@@callbacks[:destroy_upload]
 			if !!response
-				backend.remove_entry :upload_id => params[:upload_id]
+				condo_backend.remove_entry :upload_id => params[:upload_id]
 				render :json => {:upload_id => upload.id}
 			else
 				render :nothing => true, :status => :not_acceptable
@@ -171,42 +171,16 @@ module Condo
 		# 	Otherwise the dynamic residence can be used when users are define their own storage locations
 		#
 		def set_residence(name, options = {})
-			if @@callbacks[:dynamic_residence].present? && (!!!options[:dynamic])
-				if options[:upload].present?
-					upload = options[:upload]
-					instance_exec {
-						:user_id => current_resident,
-						:file_name => upload.file_name,
-						:file_size => upload.file_size,
-						:custom_params => upload.custom_params,
-						:provider_name => upload.provider_name,
-						:provider_location => upload.provider_location
-					}, &@@callbacks[:dynamic_residence]
-				else
-					instance_exec {
-						:user_id => current_resident,
-						:file_name => params[:upload][:file_name],
-						:file_size => params[:upload][:file_size],
-						:custom_params => params[:upload][:custom_params]
-					}, &@@callbacks[:dynamic_residence]
-				end
-			else
-				if !!options[:dynamic]
-					@current_residence = "Condo::Strata::#{name.to_s.camelize}".constantize.new(options)
-				else
-					@current_residence = options[:location].present? ? @@locations[name.to_sym][options[:location]] : @@locations[name.to_sym][:default]
-				end
-			end
-			
-			@current_residence
+			options[:namespace] = @@namespace || :global
+			@current_residence = condo_config.set_residence(name, options)
 		end
 		
 		def current_residence
-			@current_residence ||= @@residencies[0]
+			@current_residence ||= condo_config.residencies[0]
 		end
 		
 		def current_upload
-			@current_upload ||= backend.check_exists({:user_id => current_resident, :upload_id => params[:upload_id]}).tap do |object|	#current_residence.name && current_residence.location && resident.id.exists?
+			@current_upload ||= condo_backend.check_exists({:user_id => current_resident, :upload_id => params[:upload_id]}).tap do |object|	#current_residence.name && current_residence.location && resident.id.exists?
 				raise Condo::Errors::NotYourPlace unless object.present?
 			end
 		end
@@ -217,8 +191,12 @@ module Condo
 			end
 		end
 		
-		def backend
+		def condo_backend
 			Condo::Application.backend
+		end
+		
+		def condo_config
+			Condo::Configuration.instance
 		end
 	end
 	
@@ -227,22 +205,6 @@ module Condo
 	module ClassMethods
 		
 		protected
-		
-		
-		def add_residence(name, options = {})
-			@@residencies ||= []
-			@@residencies << ("Condo::Strata::#{name.to_s.camelize}".constantize.new(options)).tap do |res|
-				name = name.to_sym
-				
-				@@locations ||= {}
-				@@locations[name] ||= {}
-				if options[:location].present?
-					@@locations[name][options[:location]] = res
-				else
-					@@locations[name][:default] = res
-				end
-			end
-		end
 		
 		
 		def set_callback(name, callback = nil, &block)
@@ -256,28 +218,17 @@ module Condo
 		end
 		
 		
+		def set_namespace(name)
+			@@namespace = name.to_sym
+		end
+		
+		
 		#
 		# Defines the default callbacks
 		#
 		def set_condo_defaults
-			(@@callbacks ||= {}).merge {
-				#:resident_id		# Must be defined by the including class
-				:bucket_name => proc {"#{Rails.application.class.parent_name}#{instance_eval @@callbacks[:resident_id]}"},
-				:object_key => proc {params[:upload][:file_name]},
-				:object_options => proc {{:permissions => :private}},
-				:pre_validation => proc {true},	# To respond with errors use: lambda {return false, {:errors => {:param_name => 'wtf are you doing?'}}}
-				:sanitize_filename => proc {
-					params[:upload][:file_name].tap do |filename|
-						filename.gsub!(/^.*(\\|\/)/, '')	# get only the filename (just in case)
-						filename.gsub!(/[^\w\.\-]/,'_')		# replace all non alphanumeric or periods with underscore
-					end
-				}
-				#:upload_complete	# Must be defined by the including class
-				#:destroy_upload	# the actual delete should be done by the application
-				#:dynamic_residence	# If the data stores are dynamically stored by the application
-			}
+			(@@callbacks ||= {}).merge Condo::Configuration.callbacks
 		end
-		
 	end
 	
 

@@ -3,6 +3,15 @@ module Condo
 		
 		
 		#
+		# Define the base configuration options
+		#
+		#config.before_initialize do |app|						# Rails.configuration
+		#	app.config.condo = ActiveSupport::OrderedOptions.new
+		#	app.config.condo.providers = ActiveSupport::OrderedOptions.new
+		#end
+		
+		
+		#
 		# Set the proper error types for Rails.
 		#
 		initializer "load http errors" do |app|
