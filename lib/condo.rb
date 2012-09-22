@@ -44,19 +44,20 @@ module Condo
 				#
 				request = nil
 				if upload.resumable_id.present?
+					upload.object_options[:paramters] = params[:upload][:custom].merge(upload.object_options[:paramters])	# This seems more secure (May need to request the next set of parts)
 					request = residence.get_parts({
 						:bucket_name => upload.bucket_name,
 						:object_key => upload.object_key,
 						:object_options => upload.object_options,
-						:resumable_id => upload.resumable_id,
-						:params => params[:upload]				# May need to request the next set of parts
+						:resumable_id => upload.resumable_id
 					})
 				else
 					request = residence.new_upload({
 						:bucket_name => upload.bucket_name,
 						:object_key => upload.object_key,
 						:object_options => upload.object_options,
-						:file_size => upload.file_size
+						:file_size => upload.file_size,
+						:file_id => upload.file_id
 					})
 				end
 				
@@ -114,7 +115,8 @@ module Condo
 					:object_key => upload.object_key,
 					:object_options => upload.object_options,
 					:resumable_id => upload.resumable_id,
-					:part => params[:part]						# part may be called 'finish' for commit signature
+					:part => params[:part],						# part may be called 'finish' for commit signature
+					:file_id => params[:file_id]
 				})
 				
 				render :json => request.merge :upload_id => upload.id
