@@ -7,7 +7,13 @@ class Condo::Strata::AmazonS3
 	def initialize(options)
 		@options = {
 			:name => :AmazonS3,
-			:location => :'us-east-1'
+			:location => :'us-east-1',
+			:fog => {
+				:provider => :AWS,
+				:aws_access_key_id => options[:access_id],
+				:aws_secret_access_key => options[:secret_key],
+				:region => (options[:location] || 'us-east-1')
+			}
 		}.merge(options)
 		
 		
@@ -68,7 +74,7 @@ class Condo::Strata::AmazonS3
 		# Decide what type of request is being sent
 		#
 		request = {}
-		if options[:file_size] > 6291456
+		if options[:file_size] > 6291456	# 6 mb
 			options[:object_options][:parameters][:uploads] = ''	# Customise the request to be a chunked upload
 			options.delete(:file_id)							# Does not apply to chunked uploads
 			
@@ -164,6 +170,50 @@ class Condo::Strata::AmazonS3
 		#
 		request[:signature] = sign_request(options)
 		request
+	end
+	
+	
+	def fog_connection
+		Fog::Storage.new(@options[:fog])
+	end
+	
+	
+	def destroy(upload)
+		connection = fog_connection
+		directory = connection.directories.get(upload.bucket_name)	# it is assumed this exists - if not then the upload wouldn't have taken place
+		file = directory.files.get(upload.object_key)
+		
+		if upload.resumable
+			return file.destroy unless file.nil?
+			begin
+				if upload.resumable_id.present?
+					connection.abort_multipart_upload(upload.bucket_name, upload.object_key, upload.resumable_id)
+					return true
+				end
+			rescue
+				# In-case resumable_id was invalid
+			end
+			
+			#
+			# The user may have provided an invalid upload key, we'll need to search for the upload and destroy it
+			#
+			begin
+				resp = connection.list_multipart_uploads(upload.bucket_name, {'prefix' => upload.object_key})
+				resp.body['Upload'].each do |file|
+					#
+					# TODO:: BUGBUG:: there is an edge case where there may be more multi-part uploads with this this prefix then will be provided in a single request
+					# => We'll need to handle this edge case to avoid abuse and dangling objects
+					#
+					connection.abort_multipart_upload(upload.bucket_name, upload.object_key, file['UploadId']) if file['Key'] == upload.object_key
+				end
+				return true	# The upload was either never initialised or has been destroyed
+			rescue
+				return false
+			end
+		else
+			return true if file.nil?
+			return file.destroy
+		end
 	end
 	
 	

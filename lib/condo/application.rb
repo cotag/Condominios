@@ -17,6 +17,7 @@ module Condo
 		# => object_key			(the path to the object in the bucket)
 		# => object_options		(custom options that were applied to this object - public/private etc)
 		# => resumable_id		(the id of the chunked upload)
+		# => resumable			(true if a resumable upload - must be set)
 		# => custom_params		(application specific data - needs to be serialised and de-serialised)
 		# => date_created		(the date the upload was started)
 		#
@@ -42,9 +43,10 @@ module Condo
 		protected
 		
 		
-		self.backend=(parent)
+		def self.backend=(parent)
 			@@backend = parent
 		end
+		
 	end
 
 end

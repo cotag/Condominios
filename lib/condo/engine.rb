@@ -11,6 +11,8 @@ module Condo
 		#end
 		
 		
+		config.autoload_paths << File.expand_path("../../../lib", __FILE__)
+		
 		#
 		# Set the proper error types for Rails.
 		#

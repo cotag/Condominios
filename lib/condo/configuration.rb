@@ -1,3 +1,5 @@
+require 'singleton'
+
 module Condo
 	
 	class Configuration
@@ -25,7 +27,7 @@ module Condo
 		end
 		
 		def self.set_callback(name, callback = nil, &block)
-			if callback.is_a(Proc)
+			if callback.is_a?(Proc)
 				@@callbacks[name.to_sym] = callback
 			elsif block.present?
 				@@callbacks[name.to_sym] = block
@@ -35,12 +37,12 @@ module Condo
 		end
 		
 		
-		def self.set_dynamic_provider(name, callback = nil, &block)
+		def self.set_dynamic_provider(namespace, callback = nil, &block)
 			@@dynamics ||= {}
-			if callback.is_a(Proc)
-				@@dynamics[name.to_sym] = callback
+			if callback.is_a?(Proc)
+				@@dynamics[namespace.to_sym] = callback
 			elsif block.present?
-				@@dynamics[name.to_sym] = block
+				@@dynamics[namespace.to_sym] = block
 			else
 				raise ArgumentError, 'Condo callbacks must be defined with a Proc or Proc (lamba) object present'
 			end
@@ -81,7 +83,7 @@ module Condo
 			if options[:namespace].present? && dynamic_provider_present?(options[:namespace])
 				if options[:upload].present?
 					upload = options[:upload]
-					return instance_exec {
+					params = {
 						:user_id => upload.user_id,
 						:file_name => upload.file_name,
 						:file_size => upload.file_size,
@@ -89,15 +91,17 @@ module Condo
 						:provider_name => upload.provider_name,
 						:provider_location => upload.provider_location,
 						:provider_namespace => upload.provider_namespace
-					}, &@@dynamics[upload.provider_namespace]
+					}
+					return instance_exec params, &@@dynamics[upload.provider_namespace]
 				else
-					return instance_exec {
+					params = {
 						:user_id => options[:resident],
 						:file_name => options[:params][:file_name],
 						:file_size => options[:params][:file_size],
 						:custom_params => options[:params][:custom_params],
 						:provider_namespace => options[:namespace]
-					}, &@@dynamics[options[:namespace]]
+					}
+					return instance_exec params, &@@dynamics[options[:namespace]]
 				end
 			else
 				if !!options[:dynamic]

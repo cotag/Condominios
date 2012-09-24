@@ -7,17 +7,17 @@ require "condo/version"
 Gem::Specification.new do |s|
   s.name        = "condo"
   s.version     = Condo::VERSION
-  s.authors     = ["TODO: Your name"]
-  s.email       = ["TODO: Your email"]
-  s.homepage    = "TODO"
-  s.summary     = "TODO: Summary of Condo."
-  s.description = "TODO: Description of Condo."
+  s.authors     = ["Stephen von Takach"]
+  s.email       = ["steve@cotag.me"]
+  s.homepage    = "http://cotag.me/"
+  s.summary     = "Direct Cloud Storage Uploader"
+  s.description = "Provides signed upload signatures to your users browsers so they can upload directly to cloud storage providers"
 
-  s.files = Dir["{app,config,db,lib}/**/*"] + ["MIT-LICENSE", "Rakefile", "README.rdoc"]
+  s.files = Dir["{app,config,db,lib}/**/*"] + ["LGPL3-LICENSE", "Rakefile", "README.textile"]
   s.test_files = Dir["test/**/*"]
 
-  s.add_dependency "rails", "~> 3.2.8"
-  # s.add_dependency "jquery-rails"
+  s.add_dependency "rails", ">= 3.0.0"
+  s.add_dependency "fog"
 
   s.add_development_dependency "sqlite3"
 end
