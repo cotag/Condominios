@@ -22,6 +22,8 @@ module Condo
 			#:dynamic_residence	# If the data stores are dynamically stored by the application
 		}
 		
+		@@dynamics = {}
+		
 		def self.callbacks
 			@@callbacks
 		end
@@ -38,7 +40,6 @@ module Condo
 		
 		
 		def self.set_dynamic_provider(namespace, callback = nil, &block)
-			@@dynamics ||= {}
 			if callback.is_a?(Proc)
 				@@dynamics[namespace.to_sym] = callback
 			elsif block.present?

@@ -227,8 +227,8 @@ class Condo::Strata::AmazonS3
 		#
 		# Build base URL
 		#
-		options[:date] = options[:date].utc.httpdate
-		options[:expires] = options[:expires].utc.to_i
+		options[:object_options][:date] = options[:object_options][:date].utc.httpdate
+		options[:object_options][:expires] = options[:object_options][:expires].utc.to_i
 		url = "#{options[:protocol]}://#{options[:region]}/#{options[:bucket_name]}/#{options[:object_key]}?"
 		
 		#
@@ -252,7 +252,7 @@ class Condo::Strata::AmazonS3
 		#
 		# Encode the request signature
 		#
-		signature = CGI::escape(Base64.encode64(OpenSSL::HMAC.digest(OpenSSL::Digest::Digest.new('sha1'), options[:secret_key], signature)).gsub("\n",""))
+		signature = CGI::escape(Base64.encode64(OpenSSL::HMAC.digest(OpenSSL::Digest::Digest.new('sha1'), @options[:secret_key], signature)).gsub("\n",""))
 		
 		
 		#
@@ -260,7 +260,7 @@ class Condo::Strata::AmazonS3
 		#
 		return {
 			:verb => options[:object_options][:verb].to_s.upcase,
-			:url => "#{url}AWSAccessKeyId=#{options[:access_id]}&Expires=#{options[:object_options][:expires]}&Signature=#{signature}",
+			:url => "#{url}AWSAccessKeyId=#{@options[:access_id]}&Expires=#{options[:object_options][:expires]}&Signature=#{signature}",
 			:headers => options[:object_options][:headers]
 		}
 	end

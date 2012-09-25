@@ -1,6 +1,5 @@
 require 'condo/engine'
 require 'condo/errors'
-require 'condo/application'
 require 'condo/configuration'
 
 
@@ -20,10 +19,11 @@ module Condo
 				# => mutually exclusive so can send back either the parts signature from show or a bucket creation signature and the upload_id
 				#
 				resident = current_resident
+				params[:upload][:file_size] = params[:upload][:file_size].to_i
 				upload = condo_backend.check_exists({
 					:user_id => resident,
 					:file_name => (instance_eval &@@callbacks[:sanitize_filename]),
-					:file_size => params[:upload][:file_size].to_i,
+					:file_size => params[:upload][:file_size],
 					:file_id => params[:upload][:file_id]
 				})
 				
@@ -55,7 +55,7 @@ module Condo
 						})
 					end
 					
-					render :json => request.merge, :upload_id => upload.id
+					render :json => request.merge(:upload_id => upload.id)
 				else
 					#
 					# Create a new upload
@@ -64,7 +64,7 @@ module Condo
 					
 					
 					if !!valid
-						set_residence(nil, {:resident => resident, :params => params[:upload]}) if condo_config.dynamic_provider_present?(@@namespace || :global)
+						set_residence(nil, {:resident => resident, :params => params[:upload]}) if condo_config.dynamic_provider_present?(@@namespace)
 						residence = current_residence
 						
 						#
@@ -86,8 +86,8 @@ module Condo
 						# Save a reference to this upload in the database
 						# => This should throw an error on failure
 						#
-						upload = condo_backend.add_entry(params[:upload].merge ({:provider_name => residence.name, :provider_location => residence.location, :resumable => resumable}))
-						render :json => request.merge, :upload_id => upload.id
+						upload = condo_backend.add_entry(params[:upload].merge ({:user_id => resident, :provider_name => residence.name, :provider_location => residence.location, :resumable => resumable}))
+						render :json => request.merge(:upload_id => upload.id)
 						
 					elsif errors.is_a? Hash
 						render :json => errors, :status => :not_acceptable
@@ -119,7 +119,7 @@ module Condo
 						:file_id => params[:file_id]
 					})
 					
-					render :json => request.merge, :upload_id => upload.id
+					render :json => request.merge(:upload_id => upload.id)
 				else
 					render :nothing => true, :status => :not_acceptable
 				end
@@ -138,7 +138,7 @@ module Condo
 				if params[:resumable_id]
 					upload = current_upload
 					if upload.resumable
-						@current_upload = condo_backend.update_entry :upload_id => params[:upload_id], :resumable_id => params[:resumable_id]
+						@current_upload = upload.update_entry :resumable_id => params[:resumable_id]
 						edit
 					else
 						render :nothing => true, :status => :not_acceptable
@@ -161,7 +161,7 @@ module Condo
 				#
 				response = instance_exec current_upload, &@@callbacks[:destroy_upload]
 				if !!response
-					condo_backend.remove_entry :upload_id => params[:upload_id]
+					current_upload.remove_entry
 					render :nothing => true
 				else
 					render :nothing => true, :status => :not_acceptable
@@ -177,7 +177,7 @@ module Condo
 			# 	Otherwise the dynamic residence can be used when users are define their own storage locations
 			#
 			def set_residence(name, options = {})
-				options[:namespace] = @@namespace || :global
+				options[:namespace] = @@namespace
 				@current_residence = condo_config.set_residence(name, options)
 			end
 			
@@ -198,7 +198,7 @@ module Condo
 			end
 			
 			def condo_backend
-				Condo::Application.backend
+				Condo::Store
 			end
 			
 			def condo_config
@@ -210,7 +210,7 @@ module Condo
 			# Defines the default callbacks
 			#
 			(@@callbacks ||= {}).merge Condo::Configuration.callbacks
-			
+			@@namespace ||= :global
 			
 			
 			def self.set_callback(name, callback = nil, &block)
