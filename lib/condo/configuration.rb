@@ -70,6 +70,7 @@ module Condo
 					@@locations[namespace][name][options[:location].to_sym] = res
 				else
 					@@locations[namespace][name][:default] = res
+					@@locations[namespace][name][res.location] = res
 				end
 			end
 		end
@@ -108,7 +109,7 @@ module Condo
 				if !!options[:dynamic]
 					return "Condo::Strata::#{name.to_s.camelize}".constantize.new(options)
 				else
-					return options[:location].present? ? @@locations[options[:namespace]][name.to_sym][options[:location]] : @@locations[options[:namespace]][name.to_sym][:default]
+					return options[:location].present? ? @@locations[options[:namespace]][name.to_sym][options[:location].to_sym] : @@locations[options[:namespace]][name.to_sym][:default]
 				end
 			end
 		end

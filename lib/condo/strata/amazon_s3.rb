@@ -14,7 +14,7 @@ class Condo::Strata::AmazonS3
 				:aws_secret_access_key => options[:secret_key],
 				:region => (options[:location] || 'us-east-1')
 			}
-		}.merge(options)
+		}.merge!(options)
 		
 		
 		raise ArgumentError, 'Amazon Access ID missing' if @options[:access_id].nil?
@@ -22,13 +22,7 @@ class Condo::Strata::AmazonS3
 		
 		
 		@options[:location] = @options[:location].to_sym
-		
-		@options[:region] = case @options[:location]
-		when :'us-east-1'
-			's3.amazonaws.com'
-		else
-			"s3-#{@options[:location]}.amazonaws.com"
-		end
+		@options[:region] = @options[:location] == :'us-east-1' ? 's3.amazonaws.com' : "s3-#{@options[:location]}.amazonaws.com"
 	end
 	
 	
@@ -47,6 +41,7 @@ class Condo::Strata::AmazonS3
 	# => Passed: bucket_name, object_key, object_options, file_size
 	#
 	def new_upload(options)
+		options = {}.merge!(options)	# Need to deep copy here
 		options[:object_options] = {
 			:permissions => :private,
 			:expires => 5.minutes.from_now,
@@ -55,8 +50,8 @@ class Condo::Strata::AmazonS3
 			:headers => {},
 			:parameters => {},
 			:protocol => :https
-		}.merge(options[:object_options])
-		options.merge(@options)
+		}.merge!(options[:object_options])
+		options.merge!(@options)
 		
 		#
 		# Set the access control headers
@@ -105,8 +100,8 @@ class Condo::Strata::AmazonS3
 			:headers => {},
 			:parameters => {},
 			:protocol => :https
-		}.merge(options[:object_options])
-		options.merge(@options)
+		}.merge!(options[:object_options])
+		options.merge!(@options)
 		
 		#
 		# Set the upload 
@@ -135,8 +130,8 @@ class Condo::Strata::AmazonS3
 			:headers => {},
 			:parameters => {},
 			:protocol => :https
-		}.merge(options[:object_options])
-		options.merge(@options)
+		}.merge!(options[:object_options])
+		options.merge!(@options)
 		
 		
 		#
@@ -229,7 +224,7 @@ class Condo::Strata::AmazonS3
 		#
 		options[:object_options][:date] = options[:object_options][:date].utc.httpdate
 		options[:object_options][:expires] = options[:object_options][:expires].utc.to_i
-		url = "#{options[:protocol]}://#{options[:region]}/#{options[:bucket_name]}/#{options[:object_key]}?"
+		url = "#{options[:object_options][:protocol]}://#{options[:region]}/#{options[:bucket_name]}/#{options[:object_key]}?"
 		
 		#
 		# Add request params
