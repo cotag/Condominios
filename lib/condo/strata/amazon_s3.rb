@@ -36,6 +36,29 @@ class Condo::Strata::AmazonS3
 	end
 	
 	
+	
+	#
+	# Create a signed URL for accessing a private file
+	#
+	def get_object(options)
+		options = {}.merge!(options)	# Need to deep copy here
+		options[:object_options] = {
+			:expires => 5.minutes.from_now,
+			:date => Time.now,
+			:verb => :get,		# Post for multi-part uploads http://docs.amazonwebservices.com/AmazonS3/latest/API/mpUploadInitiate.html
+			:headers => {},
+			:parameters => {},
+			:protocol => :https
+		}.merge!(options[:object_options] || {})
+		options.merge!(@options)
+		
+		#
+		# provide the signed request
+		#
+		sign_request(options)[:url]
+	end
+	
+	
 	#
 	# Creates a new upload request (either single shot or multi-part)
 	# => Passed: bucket_name, object_key, object_options, file_size
@@ -46,7 +69,7 @@ class Condo::Strata::AmazonS3
 			:permissions => :private,
 			:expires => 5.minutes.from_now,
 			:date => Time.now,
-			:verb => :post,
+			:verb => :post,		# Post for multi-part uploads http://docs.amazonwebservices.com/AmazonS3/latest/API/mpUploadInitiate.html
 			:headers => {},
 			:parameters => {},
 			:protocol => :https
@@ -69,13 +92,25 @@ class Condo::Strata::AmazonS3
 		# Decide what type of request is being sent
 		#
 		request = {}
-		if options[:file_size] > 6291456	# 6 mb
+		if options[:file_size] > 5242880	# 5 mb (minimum chunk size)
 			options[:object_options][:parameters][:uploads] = ''	# Customise the request to be a chunked upload
-			options.delete(:file_id)							# Does not apply to chunked uploads
+			options.delete(:file_id)								# Does not apply to chunked uploads
 			
 			request[:type] = :chunked_upload
 		else
+			if options[:file_id].present? && options[:object_options][:headers]['Content-Md5'].nil?
+				#
+				# The client side is sending hex formatted ids that will match the amazon etag
+				# => We need this to be base64 for the md5 header (this is now done at the client side)
+				#
+				# options[:file_id] = [[options[:file_id]].pack("H*")].pack("m0")	# (the 0 avoids the call to strip - now done client side)
+				# [ options[:file_id] ].pack('m').strip			# This wasn't correct
+				# Base64.encode64(options[:file_id]).strip		# This also wasn't correct
+				#
+				options[:object_options][:headers]['Content-Md5'] = options[:file_id]
+			end
 			options[:object_options][:headers]['Content-Type'] = 'binary/octet-stream' if options[:object_options][:headers]['Content-Type'].nil?
+			options[:object_options][:verb] = :put	# Put for direct uploads http://docs.amazonwebservices.com/AmazonS3/latest/API/RESTObjectPUT.html
 			
 			request[:type] = :direct_upload
 		end
@@ -146,16 +181,15 @@ class Condo::Strata::AmazonS3
 			#
 			# Send the commitment response
 			#
-			options[:object_options][:verb] = :put
+			options[:object_options][:verb] = :post
 			request[:type] = :finish
 		else
 			#
 			# Send the part upload request
 			#
-			if options[:object_options][:parameters]['partNumber'].nil?
-				options[:object_options][:parameters]['partNumber'] = options[:part]
-			end
-			options[:object_options][:verb] = :post
+			options[:object_options][:headers]['Content-Md5'] = Base64.encode64(options[:file_id]).strip if options[:file_id].present? && options[:object_options][:headers]['Content-Md5'].nil?
+			options[:object_options][:parameters]['partNumber'] = options[:part] if options[:object_options][:parameters]['partNumber'].nil?
+			options[:object_options][:verb] = :put
 			request[:type] = :part_upload
 		end
 		
@@ -224,11 +258,12 @@ class Condo::Strata::AmazonS3
 		#
 		options[:object_options][:date] = options[:object_options][:date].utc.httpdate
 		options[:object_options][:expires] = options[:object_options][:expires].utc.to_i
-		url = "#{options[:object_options][:protocol]}://#{options[:region]}/#{options[:bucket_name]}/#{options[:object_key]}?"
+		url = "/#{options[:bucket_name]}/#{options[:object_key]}"
 		
 		#
 		# Add request params
 		#
+		url += '?' if options[:object_options][:parameters].present?
 		options[:object_options][:parameters].each do |key, value|
 			url += value.empty? ? "#{key}&" : "#{key}=#{value}&"
 		end
@@ -253,9 +288,10 @@ class Condo::Strata::AmazonS3
 		#
 		# Finish building the request
 		#
+		url += '?' unless options[:object_options][:parameters].present?
 		return {
 			:verb => options[:object_options][:verb].to_s.upcase,
-			:url => "#{url}AWSAccessKeyId=#{@options[:access_id]}&Expires=#{options[:object_options][:expires]}&Signature=#{signature}",
+			:url => "#{options[:object_options][:protocol]}://#{options[:region]}#{url}AWSAccessKeyId=#{@options[:access_id]}&Expires=#{options[:object_options][:expires]}&Signature=#{signature}",
 			:headers => options[:object_options][:headers]
 		}
 	end

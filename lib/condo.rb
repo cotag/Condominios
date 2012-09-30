@@ -13,6 +13,34 @@ module Condo
 	def self.included(base)
 		base.class_eval do
 			
+			
+			def new
+				#
+				# Returns the provider that will be used for this file upload
+				#
+				resident = current_resident
+				
+				upload_params = {}
+				upload_params[:file_size] = params[:upload][:file_size].to_i
+				upload_params[:file_name] = (instance_eval &@@callbacks[:sanitize_filename])
+				upload_params[:object_options] = params[:upload][:object_options] unless params[:upload][:object_options].nil?
+				upload_params[:custom_params] = params[:upload][:custom_params] unless params[:upload][:custom_params].nil?
+				
+				valid, errors = instance_eval &@@callbacks[:pre_validation]		# Ensure the upload request is valid before uploading
+				
+				if !!valid
+					set_residence(nil, {:resident => resident, :params => upload_params}) if condo_config.dynamic_provider_present?(@@namespace)
+					residence = current_residence
+					
+					render :json => {:residence => residence.name}
+					
+				elsif errors.is_a? Hash
+					render :json => errors, :status => :not_acceptable
+				else
+					render :nothing => true, :status => :not_acceptable
+				end
+			end
+			
 			def create
 				#
 				# Check for existing upload or create a new one
@@ -24,8 +52,8 @@ module Condo
 				upload_params[:file_size] = params[:upload][:file_size].to_i
 				upload_params[:file_id] = params[:upload][:file_id]
 				upload_params[:file_name] = (instance_eval &@@callbacks[:sanitize_filename])
-				upload_params[:object_options] = params[:upload][:object_options]
-				upload_params[:custom_params] = params[:upload][:custom_params]
+				upload_params[:object_options] = params[:upload][:object_options] unless params[:upload][:object_options].nil?
+				upload_params[:custom_params] = params[:upload][:custom_params] unless params[:upload][:custom_params].nil?
 				
 				upload = condo_backend.check_exists({
 					:user_id => resident,
@@ -62,7 +90,7 @@ module Condo
 						})
 					end
 					
-					render :json => request.merge(:upload_id => upload.id)
+					render :json => request.merge(:upload_id => upload.id, :residence => residence.name)
 				else
 					#
 					# Create a new upload
@@ -89,7 +117,7 @@ module Condo
 						# => This should throw an error on failure
 						#
 						upload = condo_backend.add_entry(upload_params.merge!({:user_id => resident, :provider_name => residence.name, :provider_location => residence.location, :resumable => resumable}))
-						render :json => request.merge!(:upload_id => upload.id)
+						render :json => request.merge!(:upload_id => upload.id, :residence => residence.name)
 						
 					elsif errors.is_a? Hash
 						render :json => errors, :status => :not_acceptable
