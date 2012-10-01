@@ -169,28 +169,31 @@ class Condo::Strata::AmazonS3
 		options.merge!(@options)
 		
 		
-		#
-		# Set the upload 
-		#
-		if options[:object_options][:parameters]['uploadId'].nil?
-			options[:object_options][:parameters]['uploadId'] = options[:resumable_id]
-		end
-		
 		request = {}
 		if options[:part] == 'finish'
 			#
 			# Send the commitment response
 			#
+			options[:object_options][:headers]['Content-Type'] = 'application/xml' if options[:object_options][:headers]['Content-Type'].nil?
 			options[:object_options][:verb] = :post
 			request[:type] = :finish
 		else
 			#
 			# Send the part upload request
 			#
-			options[:object_options][:headers]['Content-Md5'] = Base64.encode64(options[:file_id]).strip if options[:file_id].present? && options[:object_options][:headers]['Content-Md5'].nil?
+			options[:object_options][:headers]['Content-Md5'] = options[:file_id] if options[:file_id].present? && options[:object_options][:headers]['Content-Md5'].nil?
+			options[:object_options][:headers]['Content-Type'] = 'binary/octet-stream' if options[:object_options][:headers]['Content-Type'].nil?
 			options[:object_options][:parameters]['partNumber'] = options[:part] if options[:object_options][:parameters]['partNumber'].nil?
 			options[:object_options][:verb] = :put
 			request[:type] = :part_upload
+		end
+		
+		
+		#
+		# Set the upload 
+		#
+		if options[:object_options][:parameters]['uploadId'].nil?
+			options[:object_options][:parameters]['uploadId'] = options[:resumable_id]
 		end
 		
 		
@@ -220,7 +223,7 @@ class Condo::Strata::AmazonS3
 					return true
 				end
 			rescue
-				# In-case resumable_id was invalid
+				# In-case resumable_id was invalid or did not match the object key
 			end
 			
 			#
@@ -233,7 +236,7 @@ class Condo::Strata::AmazonS3
 					# TODO:: BUGBUG:: there is an edge case where there may be more multi-part uploads with this this prefix then will be provided in a single request
 					# => We'll need to handle this edge case to avoid abuse and dangling objects
 					#
-					connection.abort_multipart_upload(upload.bucket_name, upload.object_key, file['UploadId']) if file['Key'] == upload.object_key
+					connection.abort_multipart_upload(upload.bucket_name, upload.object_key, file['UploadId']) if file['Key'] == upload.object_key	# Ensure an exact match
 				end
 				return true	# The upload was either never initialised or has been destroyed
 			rescue
@@ -267,6 +270,7 @@ class Condo::Strata::AmazonS3
 		options[:object_options][:parameters].each do |key, value|
 			url += value.empty? ? "#{key}&" : "#{key}=#{value}&"
 		end
+		url.chomp!('&') if options[:object_options][:parameters].present?
 		
 		
 		#
@@ -288,7 +292,7 @@ class Condo::Strata::AmazonS3
 		#
 		# Finish building the request
 		#
-		url += '?' unless options[:object_options][:parameters].present?
+		url += options[:object_options][:parameters].present? ? '&' : '?'
 		return {
 			:verb => options[:object_options][:verb].to_s.upcase,
 			:url => "#{options[:object_options][:protocol]}://#{options[:region]}#{url}AWSAccessKeyId=#{@options[:access_id]}&Expires=#{options[:object_options][:expires]}&Signature=#{signature}",
