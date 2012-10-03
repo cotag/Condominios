@@ -58,7 +58,7 @@
 			current_id,
 			xhr,
 			reader = new FileReader(),
-			part_size = 5242880,			// May be defined by the server (this is the default for amazon)
+			part_size = 5242880,			// Multi-part uploads should be bigger then this
 			upload_id;						// This is the applications upload reference (not amazon's)
 			
 		
@@ -67,6 +67,7 @@
 		//	
 		if(typeof(file.slice) != 'function')
 			file.slice = file.webkitSlice || file.mozSlice;
+		
 			
 			
 		function restart() {
@@ -99,7 +100,18 @@
 			if(strategy == null) {	// We need to create the upload
 				element.trigger('started', [file, self]);
 				
-				strategy = {state: STARTED};	// This function shouldn't be called twice
+				//
+				// Update part size if required
+				//
+				if((part_size * 9999) < file.size)	{
+					part_size = file.size / 9999;
+					if(part_size > (5 * 1024 * 1024 * 1024)) {		// 5GB limit on part sizes
+						this.abort();
+						return;
+					}
+				}
+				
+				strategy = {state: STARTED};	// This function shouldn't be called twice so we need a state
 				
 				build_request(function(part_number){
 					if (strategy == null)
@@ -320,7 +332,6 @@
 			var $this = this,
 				part_ids = [],
 				last_part = 0;
-				
 			
 			
 			//
