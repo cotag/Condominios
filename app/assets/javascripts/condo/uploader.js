@@ -17,12 +17,12 @@
 (function (factory) {
 	if (typeof define === 'function' && define.amd) {
 		// AMD
-		define('condo_uploader', ['jquery', 'spark_md5'], factory);
+		define('condo_uploader', ['jquery'], factory);
 	} else {
 		// Browser globals
-		factory(jQuery, window.md5);
+		factory(jQuery);
 	}
-}(function ($, md5, undefined) {
+}(function ($, undefined) {
 	'use strict';
 	
 	

@@ -17,10 +17,10 @@
 (function (factory) {
 	if (typeof define === 'function' && define.amd) {
 		// AMD
-		define(['jquery', 'spark_md5', 'base64'], factory);
+		define(['jquery', 'spark-md5', 'base64'], factory);
 	} else {
 		// Browser globals
-		factory(jQuery, window.md5, window.base64);
+		factory(jQuery, window.SparkMD5, window.base64);
 	}
 }(function ($, MD5, base64, undefined) {
 	'use strict';
@@ -89,7 +89,7 @@
 			}
 			
 			reader.onload = function(e) {
-				current_id = MD5.hash({content: e.target.result});
+				current_id = MD5.hashBinary(e.target.result);
 				callback(part_number);					// Call the function waiting on the MD5 hash
 			}
 			reader.readAsBinaryString(current_part);
