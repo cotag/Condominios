@@ -25,7 +25,7 @@
 }(function ($, MD5, base64, undefined) {
 	'use strict';
 	
-	var part_size = 5242880,	// NOTE:: This must match the server side part size
+	var file_list = {},
 		STARTED = 0,
 		PAUSED = 1,
 		UPLOADING = 2,
@@ -57,7 +57,9 @@
 			current_part,
 			current_id,
 			xhr,
-			reader = new FileReader();
+			reader = new FileReader(),
+			part_size = 5242880,			// May be defined by the server (this is the default for amazon)
+			upload_id;						// This is the applications upload reference (not amazon's)
 			
 		
 		//
@@ -100,7 +102,7 @@
 				strategy = {state: STARTED};	// This function shouldn't be called twice
 				
 				build_request(function(part_number){
-					if (strategy.state != STARTED)
+					if (strategy == null)
 						return;						// upload was aborted
 					
 					params = params || {};
@@ -114,25 +116,33 @@
 						data: {upload: params},
 						dataType: 'json',
 						success: function(data, textStatus, jqXHR) {
-							//upload_id = data.upload_id;
+							upload_id = data.upload_id;
 							xhr = null;
-							if(data.type == 'direct_upload') {
-								//
-								// Create a direct upload handler
-								//
-								self.strategy = new AmazonDirect(data);
-							}
-							else {
-								//
-								// Create a chunked upload handler
-								//
-								self.strategy = new AmazonChunked(data);
+							
+							if(!!file_list[upload_id]) {
+								self.abort('duplicate');	// This file is already being uploaded on this users account by this window
+							} else {
+								file_list[upload_id] = self;
+								
+								if(data.type == 'direct_upload') {
+									//
+									// Create a direct upload handler
+									//
+									self.strategy = new AmazonDirect(data);
+								}
+								else {
+									//
+									// Create a chunked upload handler
+									//
+									self.strategy = new AmazonChunked(data);
+								}
 							}
 						},
 						error: function(jqXHR, textStatus, errorThrown) {
 							xhr = null;
 							if (!(userAborted(jqXHR) && textStatus == 'abort')) {
-								element.trigger('error', [file, errorThrown, self, jQuery.parseJSON(jqXHR.responseText)]);
+								self.abort('error');
+								element.trigger('error', [file, self, errorThrown, jQuery.parseJSON(jqXHR.responseText)]);
 							}
 						}
 					});
@@ -145,19 +155,50 @@
 		this.pause = function(reason) {
 			if(strategy != null && strategy.state == UPLOADING) {	// Check if the upload is uploading
 				strategy.pause();
+			} else if (strategy.state == STARTED) {
+				strategy = null;
 			}
+			
+			element.trigger('paused', [file, self, reason]);
 		};
 		
-		this.abort = function() {
+		this.abort = function(reason) {
 			if(strategy != null && strategy.state < FINISHED) {	// Check the upload has not started
-				if(strategy.state == STARTED) {
-					if(!!xhr)					// Abort the call to create
-						xhr.abort();			// We could be building the request so we need to update the state regardless
-					
-					strategy.state = ABORTED;
-					element.trigger('aborted', [file, self]);
+				if(!!xhr)					// Abort any current requests
+					xhr.abort();
+				
+				//
+				// if we have an upload_id then we should destroy the upload
+				//	we won't worry if this fails as it should be automatically cleaned up by the back end
+				//
+				if(strategy.state != STARTED) {
+					$.ajax({
+						type: 'POST',
+						url: options.api_endpoint + '/' + upload_id,
+						data: {'_method':'DELETE'}
+					});
+				}
+				
+				//
+				// As we may not have successfully deleted the upload
+				//	or we aborted before we received a response from create
+				//
+				restart();	// nullifies strategy
+			}
+			
+			element.trigger('aborted', [file, self, reason]);
+		};
+		
+		
+		this.remove = function() {
+			if(!!upload_id)
+				delete file_list.upload_id;
+			
+			if(strategy != null) {
+				if(strategy.state != STARTED) {
+					this.pause();
 				} else {
-					strategy.abort();
+					this.abort();
 				}
 			}
 		};
@@ -171,8 +212,7 @@
 			// abort
 			// pause
 			//
-			var upload_id = data.upload_id,
-				$this = this,
+			var $this = this,
 				finalising = false;
 
 			
@@ -180,6 +220,9 @@
 			// This will only be called when the upload has finished and we need to inform the application
 			//
 			this.resume = function() {
+				this.state = UPLOADING;
+				element.trigger('uploading', [file, self]);
+				
 				xhr = $.ajax({				// NOTE:: Almost exactly the same as for resumable uploads (Update both, not very dry I know.)
 					type: 'POST',
 					url: options.api_endpoint + '/' + upload_id,
@@ -194,13 +237,13 @@
 		        	error: function(jqXHR, textStatus, errorThrown) {
 		        		xhr = null;
 		        		if (!(userAborted(jqXHR) && textStatus == 'abort')) {
-							element.trigger('error', [file, errorThrown, self]);
 							//
 							// We don't want to call pause here
 							//	as we want resume (or retry) to call resume.
 							//
 							$this.state = PAUSED;
 							element.trigger('paused', [file, self, 'unknown error']);
+							element.trigger('error', [file, self, errorThrown]);
 						}
 					}
 				});
@@ -212,43 +255,21 @@
 						xhr.abort();
 						
 					this.state = PAUSED;
-					element.trigger('paused', [file, self, reason]);
 					
 					if(!finalising) {
+						restart();		// Should occur before events triggered
 						element.trigger('progress', [file, 0]);
-						restart();
 					}
-				}
-			};
-			
-			this.abort = function() {
-				//
-				// Check what state we are at with the current file
-				//
-				if(this.state < FINISHED) {
-					if(!!xhr)
-						xhr.abort();
 					
-					//
-					// AJAX request to destroy the upload
-					//	(we won't worry if this fails as it should be automatically cleaned up by the back end)
-					//
-					$.ajax({
-						type: 'POST',
-						url: options.api_endpoint + '/' + upload_id,
-						data: {'_method':'DELETE'}
-					});
-					
-					this.state = ABORTED;
-					element.trigger('aborted', [file, self]);
-					restart();	// Might be needed if called during resume
+					element.trigger('paused', [file, self, reason]);
 				}
 			};
 			
 			
 			
 			this.state = UPLOADING;
-			element.trigger('uploading', [file, self]);
+			
+			
 			//
 			// AJAX for upload goes here
 			//
@@ -265,8 +286,8 @@
 	        	error: function(jqXHR, textStatus, errorThrown) {
 	        		xhr = null;
 	        		if (!(userAborted(jqXHR) && textStatus == 'abort')) {
-						element.trigger('error', [file, errorThrown, self]);
 						$this.pause('upload failed');
+						element.trigger('error', [file, self, errorThrown]);
 					}
 				},
 	        	xhr: function() {
@@ -281,6 +302,8 @@
 					return xhr;
 				}
 			});
+			
+			element.trigger('uploading', [file, self]);
 		} // END DIRECT
 		
 		
@@ -294,8 +317,7 @@
 			// abort
 			// pause
 			//
-			var upload_id = data.upload_id,	// This is the applications upload reference (not amazon's)
-				$this = this,
+			var $this = this,
 				part_ids = [],
 				last_part = 0;
 				
@@ -367,6 +389,7 @@
 		        	processData: false,
 		        	headers: request.signature.headers,
 		        	success: function() {
+		        		xhr = null;
 		        		part_ids.push(current_id);	// We need to record the list of part IDs for completion
 		        		last_part = part_number;
 		        		next_part(part_number + 1);
@@ -377,8 +400,8 @@
 		        			//
 			        		// TODO:: We want to retry this on failure
 			        		//
-		        			element.trigger('error', [file, errorThrown, self]);
-							$this.pause('upload failed');
+							$this.pause('upload error');
+							element.trigger('error', [file, self, errorThrown]);
 		        		}
 						element.trigger('progress', [file, (part_number - 1) * part_size]);
 					},
@@ -400,8 +423,8 @@
 			function commonError(jqXHR, textStatus, errorThrown) {
 				xhr = null;
         		if (!(userAborted(jqXHR) && textStatus == 'abort')) {
-					element.trigger('error', [file, errorThrown, self]);
-					$this.pause('upload failed');
+					$this.pause('upload error');
+					element.trigger('error', [file, self, errorThrown]);
 				}
 			}
 			
@@ -432,46 +455,39 @@
 		        	error: function(jqXHR, textStatus, errorThrown) {
 		        		xhr = null;
 		        		if (!(userAborted(jqXHR) && textStatus == 'abort')) {
-							element.trigger('error', [file, errorThrown, self]);
 							//
 							// We don't want to call pause here
 							//	as we want resume (or retry) to call resume.
 							//
 							$this.state = PAUSED;
 							element.trigger('paused', [file, self, 'unknown error']);
+							element.trigger('error', [file, self, errorThrown]);
 						}
 					}
 				});
 			}
 				
 
-			
-			//
-			// This will only be called when the upload has finished and we need to inform the application
-			//
 			this.resume = function() {
-				
-			}
+				this.state = UPLOADING;
+				next_part(last_part + 1);
+				element.trigger('uploading', [file, self]);
+			};
 			
 			this.pause = function(reason) {
 				if(this.state == UPLOADING) {
-					
-				}
-			};
-			
-			this.abort = function() {
-				//
-				// Check what state we are at with the current file
-				//
-				if(this.state < FINISHED) {
-					
+					if(!!xhr)
+						xhr.abort();
+						
+					this.state = PAUSED;
+					element.trigger('paused', [file, self, reason]);
 				}
 			};
 			
 			
 			
 			this.state = UPLOADING;
-			element.trigger('uploading', [file, self]);
+			
 			
 			//
 			// We need to check if we are grabbing a parts list or creating an upload
@@ -483,6 +499,7 @@
 	        	dataType: 'xml',
 	        	success: function(response, textStatus, jqXHR){
 	        		if(data.type == 'parts') {	// was the original request for a list of parts
+	        			xhr = null;
 	        			//
 	        			// NextPartNumberMarker == the final part in the current request
 	        			//	TODO:: if IsTruncated is set then we need to keep getting parts
@@ -495,6 +512,7 @@
 	        				part_ids.push($(this).text().replace(/"{1}/gi,''));	// Removes " from strings
 	        			});
 	        			
+	        			last_part = next;		// So we can resume
 	        			next_part(next + 1);	// As NextPartNumberMarker is just the last part uploaded
 	        		} else {
 	        			//
@@ -515,24 +533,29 @@
 				        	},
 				        	error: function(jqXHR, textStatus, errorThrown) {
 				        		xhr = null;
+				        		restart();		// Easier to start from the beginning
+				        		
 				        		if (!(userAborted(jqXHR) && textStatus == 'abort')) {
-									element.trigger('error', [file, errorThrown, self]);
-									$this.pause('upload failed');
+									$this.pause('upload error');
+									element.trigger('error', [file, self, errorThrown]);
 								}
-								restart();		// Easier to start from the beginning
 							}
 						});
 	        		}
 	        	},
 	        	error: function(jqXHR, textStatus, errorThrown) {
 	        		xhr = null;
+	        		restart();		// We need to get a new request signature
+	        		
 	        		if (!(userAborted(jqXHR) && textStatus == 'abort')) {
-						element.trigger('error', [file, errorThrown, self]);
-						$this.pause('upload failed');
+						$this.pause('upload error');
+						element.trigger('error', [file, self, errorThrown]);
 					}
-					restart();		// We need to get a new request signature
 				}
 			});
+			
+			
+			element.trigger('uploading', [file, self]);
 		} // END CHUNKED
 	} // END AMAZON
 	

@@ -73,7 +73,14 @@
 			// Manage the queue
 			//
 			this.element.on('aborted.condo completed.condo', function(event, file, upload) {
-				self.queue.splice(self.queue.indexOf(file), 1);	// Remove the upload from the queue
+				self.queue.splice(self.queue.indexOf(upload), 1);	// Remove the upload from the queue
+			});
+			
+			this.element.on('started.condo', function(event, file, upload) {
+				var index = self.queue.indexOf(upload);
+				if(index == -1) {
+					self.queue.push(upload);	// Remove the upload from the queue
+				}
 			});
 			
 			//
@@ -96,13 +103,13 @@
 						$(this).addClass(self.options.hover_class);
 					}
 					
-					return false;					
+					return false;
 				}).on('dragleave.condo', this.options.drop_targets, function(event) {
 					if(!!self.options['hover_class']) {
 						$(this).removeClass(self.options.hover_class);
 					}
 					
-					return false;	
+					return false;
 				});
 			}
 			
@@ -138,11 +145,11 @@
 						$this.queue.push(upload);
 						$this.element.trigger('added', [file, upload]);
 					} else {
-						$this.element.trigger('error', [file, 'residence', data]);
+						$this.element.trigger('error', [file, null, 'residence', data]);	// Could not find the client side strategy
 					}
 				},
 				error: function(jqXHR, textStatus, errorThrown) {
-					$this.element.trigger('error', [file, errorThrown, jQuery.parseJSON(jqXHR.responseText)]);
+					$this.element.trigger('error', [file, null, errorThrown, jQuery.parseJSON(jqXHR.responseText)]);
 				}
 			});
 		},
@@ -154,7 +161,7 @@
 			var response = false;
 			
 			for (var i = 0, f; f = files[i]; i++) {
-				if(!!this.options['new_file']) {
+				if(!!this.options['new_file']) {			// Client side extension / file check
 					response = this.options.new_file(f);
 					if(!!response)
 						this.get_provider(f, response);
@@ -183,9 +190,7 @@
 		},
 		
 		destroy: function() {
-			for (var i = 0, f; f = this.queue[i]; i++) {
-				f.pause();	// Pauses if active
-			}
+			this.pause_all();
 			this.element.off('.condo').removeData('plugin_' + pluginName);
 		}
 	};
