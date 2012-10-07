@@ -21,10 +21,10 @@ module Condo
 				resident = current_resident
 				
 				upload_params = {}
-				upload_params[:file_size] = params[:upload][:file_size].to_i
+				upload_params[:file_size] = params[:file_size].to_i
 				upload_params[:file_name] = (instance_eval &@@callbacks[:sanitize_filename])
-				upload_params[:object_options] = params[:upload][:object_options] unless params[:upload][:object_options].nil?
-				upload_params[:custom_params] = params[:upload][:custom_params] unless params[:upload][:custom_params].nil?
+				upload_params[:object_options] = params[:object_options] unless params[:object_options].nil?
+				upload_params[:custom_params] = params[:custom_params] unless params[:custom_params].nil?
 				
 				valid, errors = instance_eval &@@callbacks[:pre_validation]		# Ensure the upload request is valid before uploading
 				
@@ -49,11 +49,11 @@ module Condo
 				resident = current_resident
 				
 				upload_params = {}
-				upload_params[:file_size] = params[:upload][:file_size].to_i
-				upload_params[:file_id] = params[:upload][:file_id]
+				upload_params[:file_size] = params[:file_size].to_i
+				upload_params[:file_id] = params[:file_id]
 				upload_params[:file_name] = (instance_eval &@@callbacks[:sanitize_filename])
-				upload_params[:object_options] = params[:upload][:object_options] unless params[:upload][:object_options].nil?
-				upload_params[:custom_params] = params[:upload][:custom_params] unless params[:upload][:custom_params].nil?
+				upload_params[:object_options] = params[:object_options] unless params[:object_options].nil?
+				upload_params[:custom_params] = params[:custom_params] unless params[:custom_params].nil?
 				
 				upload = condo_backend.check_exists({
 					:user_id => resident,

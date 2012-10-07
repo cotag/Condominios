@@ -11,6 +11,8 @@
 * 	References:
 * 		* https://github.com/umdjs/umd
 * 		* https://github.com/addyosmani/jquery-plugin-patterns
+*		* http://docs.angularjs.org/api/ng.$http
+*		* http://docs.angularjs.org/api/ng.$q
 *
 **/
 
@@ -20,198 +22,211 @@
 		define('condo_uploader', ['jquery'], factory);
 	} else {
 		// Browser globals
-		factory(jQuery);
+		window.CondoUploader = factory(jQuery);
 	}
 }(function ($, undefined) {
 	'use strict';
 	
+	var uploads = angular.module('CondoUploader', []);
+	
 	
 	//
-	// Create a namespace for storing the various storage logic
+	// Implements the Condo API
 	//
-	if (!$.condo) {
-		$.condo = {
-			strategies: {}
+	uploads.factory('CondoApi', ['$http', '$q', 'AmazonS3Condo', function($http, $q, AmazonS3Condo) {
+		
+		
+		var token = $('meta[name="csrf-token"]').attr('content'),
+			residencies = {
+				AmazonS3: AmazonS3Condo
+			};
+		
+		$http.defaults.headers = {};
+		$http.defaults.headers['common']['X-Requested-With'] = 'XMLHttpRequest';
+		$http.defaults.headers['post']['X-CSRF-Token'] = token;
+		$http.defaults.headers['put']['X-CSRF-Token'] = token;
+		$http.defaults.headers['delete']['X-CSRF-Token'] = token;
+
+		
+		function condoConnection(api_endpoint, params) {
+			this.endpoint = api_endpoint;		// The API mounting point
+			this.params = params;				// Custom API parameters
+			
+			this.upload_id = null;		// The current upload ID
+			this.aborting = false;		// Has the user has requested an abort?
+			this.xhr = null;			// Any active cloud file xhr requests
 		}
-	}
-	
-	
-	//
-	// Defaults
-	//
-	var pluginName = 'condoUploader',
-	defaults = {
-		// api_endpoint					(url the api is located at)
-		// new_file						(callback that allows for preventing a file upload or adding custom params)
-		// drop_targets					(elements that will accept a file drop)
-		// hover_class					(apply a class to the hover elements)
-		input_elements: 'input[:file]',	// Input elements to listen to
-		auto_start: true,				// Auto start uploads
-		auto_clear: false,				// Auto clear completed uploads from the list
-		halt_on_error: false,			// Stop processing further uploads when an error occurs
-		upload_retry_limit: 3			// We won't consider an upload failure an error until this retry limit is reached
-	};
-	
-	//
-	// Plugin Constructor
-	//
-	function Uploader( element, options ) {
-		this.element = $(element);
-		this.options = $.extend({}, defaults, options);
-		this._defaults = defaults;
-		this.queue = [];
 		
-		this.init();
-	}
-	
-	Uploader.prototype = {
-		init: function() {
-			var $this = this.element,
-				self = this;
+		condoConnection.prototype = {
+			
 			
 			//
-			// Manage the queue
+			// Creates an entry in the database for the requested file and returns the upload signature
+			//	If an entry already exists it returns a parts request signature for resumable uploads
 			//
-			this.element.on('aborted.condo completed.condo', function(event, file, upload) {
-				self.queue.splice(self.queue.indexOf(upload), 1);	// Remove the upload from the queue
-			});
-			
-			this.element.on('started.condo', function(event, file, upload) {
-				var index = self.queue.indexOf(upload);
-				if(index == -1) {
-					self.queue.push(upload);	// Remove the upload from the queue
-				}
-			});
-			
-			//
-			// Detect file drops
-			//
-			if(!!this.options['drop_targets']) {
-				this.element.on('drop.condo', this.options.drop_targets, function(event) {
-					if(!!self.options['hover_class']) {
-						$this.removeClass(self.options.hover_class);
-					}
-					
-					//
-					// Prevent propagation early (so any errors don't cause unwanted behaviour)
-					//
-					event.preventDefault();
-					event.stopPropagation();
-					self.add_files(event.originalEvent.dataTransfer.files);
-				}).on('dragover.condo', this.options.drop_targets, function(event) {
-					if(!!self.options['hover_class']) {
-						$(this).addClass(self.options.hover_class);
-					}
-					
-					return false;
-				}).on('dragleave.condo', this.options.drop_targets, function(event) {
-					if(!!self.options['hover_class']) {
-						$(this).removeClass(self.options.hover_class);
-					}
-					
-					return false;
+			create: function(options) {		// file_id: 123, options: {} 
+				var self = this;
+				options = options || {};
+				
+				if(!!options['file_id'])
+					this.params['file_id'] = options['file_id'];
+				
+				if(!!options['options'])
+					this.params['object_options'] = options['options'];		// We may be requesting the next set of parts
+				
+				return $http({
+					method: 'POST',
+					url: this.endpoint,
+					params: this.params
+				}).then(function(result){
+					self.upload_id = result.upload_id;	// Extract the upload id from the results
+					delete result.upload_id;
+					return result;
 				});
-			}
+			},
+			
 			
 			//
-			// Detect manual file uploads
+			// This requests a chunk signature
+			//	Only used for resumable uploads
 			//
-			if(!!this.options['input_elements']) {
-				this.element.on('change.condo', this.options.input_elements, function(event) {
-					
-					self.add_files($(this)[0].files);
-					
-				});
-			}
-		},
-		
-		//
-		// For the current upload find the upload strategy we need to use
-		//
-		get_provider: function(file, params) {
-			var $this = this;
-			
-			params = params || {};
-			params['file_size'] = file.size;
-			params['file_name'] = file.name;
-			
-			$.ajax({
-				url: this.options.api_endpoint + '/new',
-				data: {upload: params},
-				dataType: 'json',
-				success: function(data, textStatus, jqXHR) {
-					if(!!$.condo.strategies[data.residence]) {
-						var upload = new $.condo.strategies[data.residence]($this.element, $this.options, file, params);
-						$this.queue.push(upload);
-						$this.element.trigger('added', [file, upload]);
-					} else {
-						$this.element.trigger('error', [file, null, 'residence', data]);	// Could not find the client side strategy
+			edit: function(part_number, part_id) {
+				return $http({
+					method: 'GET',
+					url: this.endpoint + '/' + this.upload_id + '/edit',
+					params: {
+						part: part_number,
+						file_id: part_id
 					}
-				},
-				error: function(jqXHR, textStatus, errorThrown) {
-					$this.element.trigger('error', [file, null, errorThrown, jQuery.parseJSON(jqXHR.responseText)]);
-				}
-			});
-		},
-		
-		//
-		// Add files to the queue
-		//
-		add_files: function(files) {
-			var response = false;
+				});
+			},
 			
-			for (var i = 0, f; f = files[i]; i++) {
-				if(!!this.options['new_file']) {			// Client side extension / file check
-					response = this.options.new_file(f);
-					if(!!response)
-						this.get_provider(f, response);
+			
+			//
+			// If resumable id is present the upload is updated
+			//	Otherwise the upload deemed complete
+			//
+			update: function(resumable_id) {	// optional parameter
+				var params = {};
+				
+				if(!!resumable_id)
+					params['resumable_id'] = resumable_id;
+					
+				return $http({
+					method: 'PUT',
+					url: this.endpoint + '/' + this.upload_id,
+					params: params
+				});
+			},
+			
+			
+			//
+			// Cancels a resumable upload
+			//	The actual destruction of the file is handled on the server side as we can't trust the client to do this
+			//
+			destroy: function() {
+				return $http({
+					method: 'DELETE',
+					url: this.endpoint + '/' + this.upload_id
+				});
+			},
+			
+			
+			
+			//
+			// Provides a promise for any request this is what communicated with the cloud storage servers
+			//
+			process_request: function(signature, progress_callback) {
+				var self = this,
+					result = $q.defer(),
+					params = {
+						url: signature.url,
+						type: signature.verb,
+						headers: signature.headers,
+						processData: false,
+						success: function(response, textStatus, jqXHR) {
+							self.xhr = null;
+							result.resolve(response);
+						},
+						error: function(jqXHR, textStatus, errorThrown) {
+							self.xhr = null;
+							result.reject('upload failed');
+						}
+					};
+					
+				if (!!self.xhr) {
+					result.reject('request in progress');	// This is awesome
+					return result.promise;
+				}
+				
+				if(!!signature.data){
+					params['data'] = signature.data;
+				}
+				
+				if(!!progress_callback) {
+					params['xhr'] = function() {
+						var xhr = $.ajaxSettings.xhr();
+						if(!!xhr.upload){
+							xhr.upload.addEventListener('progress', function(e) {
+								if (e.lengthComputable) {
+									progress_callback(e.loaded);			// Callback we'll need to wrap these in an apply to update the view
+								}
+							}, false);
+						}
+						return xhr;
+					};
+				}
+				
+				self.xhr = $.ajax(params);
+				
+				return result.promise;
+			},
+			
+			
+			//
+			// Will trigger the error call-back of the xhr object
+			//
+			abort: function() {
+				if(!!this.xhr) {
+					this.xhr.abort();
 				} else {
-					this.get_provider(f);
+					this.aborting = true;		// TODO:: we need to reject requests if abort was set
 				}
 			}
-		},
+		};
 		
-		pause_all: function() {
-			for (var i = 0, f; f = this.queue[i]; i++) {
-				f.pause();	// Pauses if active
+		return {
+			//
+			// Used to determine what upload strategy to use (Amazon, Google, etc)
+			//
+			check_provider: function(api_endpoint, the_file, options, params) {
+				params = params || {};
+				params['file_size'] = the_file.size;
+				params['file_name'] = the_file.name;
+				
+				return $http({
+					method: 'GET',
+					url: api_endpoint + '/new',
+					params: params
+				}).then(function(result){
+					if(!!residencies[result.residence]) {
+						
+						var api = new condoConnection(api_endpoint, params);
+						return residencies[result.residence].new_upload(api, the_file, options);	// return the instantiated provider
+						
+					} else {
+						return $q.reject('provider not found');
+					}
+				});
 			}
-		},
-		
-		abort_all: function() {
-			for (var i = 0, f; f = this.queue[i]; i++) {
-				f.abort();
-			}
-		},
-		
-		start_all: function() {
-			for (var i = 0, f; f = this.queue[i]; i++) {
-				f.start();	// Starts if pending or paused
-			}
-		},
-		
-		destroy: function() {
-			this.pause_all();
-			this.element.off('.condo').removeData('plugin_' + pluginName);
-		}
-	};
+		};
+	}]);
 	
 	
-	$.fn[pluginName] = function( options ) {
-		
-		//
-		// The uploader attaches delegates to the matching elements
-		//	Events are then fired from these to expose state
-		//
-		return this.each(function () {
-			if (!$.data(this, 'plugin_' + pluginName)) {
-				$.data(this, 'plugin_' + pluginName, new Uploader( this, options ));
-			} else if (typeof options === 'string') {
-				//
-				// We do a function call
-				//
-				var plugin = $.data(this, 'plugin_' + pluginName);
-				plugin[options].apply(plugin, Array.prototype.slice.call( arguments, 1 ));
-			}
-		});
-	};
+	
+	//
+	// Anonymous function return
+	//
+	return uploads;
+	
 }));

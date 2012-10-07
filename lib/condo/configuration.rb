@@ -8,11 +8,11 @@ module Condo
 		@@callbacks = {
 			#:resident_id		# Must be defined by the including class
 			:bucket_name => proc {"#{Rails.application.class.parent_name}#{instance_eval @@callbacks[:resident_id]}"},
-			:object_key => proc {params[:upload][:file_name]},
+			:object_key => proc {params[:file_name]},
 			:object_options => proc {{:permissions => :private}},
 			:pre_validation => proc {true},	# To respond with errors use: lambda {return false, {:errors => {:param_name => 'wtf are you doing?'}}}
 			:sanitize_filename => proc {
-				params[:upload][:file_name].tap do |filename|
+				params[:file_name].tap do |filename|
 					filename.gsub!(/^.*(\\|\/)/, '')	# get only the filename (just in case)
 					filename.gsub!(/[^\w\.\-]/,'_')		# replace all non alphanumeric or periods with underscore
 				end
