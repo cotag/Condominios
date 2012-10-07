@@ -106,11 +106,8 @@
 			// If resumable id is present the upload is updated
 			//	Otherwise the upload deemed complete
 			//
-			update: function(resumable_id) {	// optional parameter
-				var params = {};
-				
-				if(!!resumable_id)
-					params['resumable_id'] = resumable_id;
+			update: function(params) {	// optional parameters (resumable_id, file_id and part)
+				params = params || {};
 					
 				return $http({
 					method: 'PUT',

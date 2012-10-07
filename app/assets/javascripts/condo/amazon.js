@@ -61,7 +61,6 @@
 			var self = this,
 				strategy = null,
 				part_size = 5242880,			// Multi-part uploads should be bigger then this
-				part_cache,
 				defaultError = function() {
 					self.pause('issue with upload');
 				};
@@ -80,6 +79,15 @@
 				
 			function restart() {
 				strategy = null;
+			}
+
+
+			function completeUpload() {
+				api.update().
+					success(function(data, status, headers, config) {
+						self.state = COMPLETED;
+					}).
+					error(defaultError);
 			}
 			
 			
@@ -104,10 +112,12 @@
 					current_part = file;
 				}
 				
-				
 				reader.onload = function(e) {
-					part_cache = {data: current_part, data_id: MD5.hashBinary(e.target.result), part_number: part_number};
-					result.resolve(part_cache);					// Call the function waiting on the MD5 hash
+					result.resolve({
+						data: current_part,
+						data_id: MD5.hashBinary(e.target.result),
+						part_number: part_number
+					});
 				};
 				reader.onerror = fail;
 				reader.onabort = fail;
@@ -142,7 +152,7 @@
 								if(data.type == 'direct_upload') {
 									strategy = new AmazonDirect(data);
 								} else {
-									strategy = new AmazonChunked(data);
+									strategy = new AmazonChunked(data, result);
 								}
 							}).
 							error(defaultError);
@@ -235,24 +245,15 @@
 				//
 				this.resume = function() {
 					self.state = UPLOADING;
-					
-					api.update().
-						success(function(data, status, headers, config) {
-							self.state = COMPLETED;
-						}).
-						error(defaultError);
+					completeUpload();
 				}
 				
 				this.pause = function() {
-					if(this.state == UPLOADING) {
-						api.abort();
-							
-						self.state = PAUSED;
+					api.abort();
 						
-						if(!finalising) {
-							restart();		// Should occur before events triggered
-							self.progress = 0;
-						}
+					if(!finalising) {
+						restart();		// Should occur before events triggered
+						self.progress = 0;
 					}
 				};
 				
@@ -260,6 +261,7 @@
 				//
 				// AJAX for upload goes here
 				//
+				data['data'] = file;
 				api.process_request(data, function(progress) {
 					self.progress = progress;
 				}).then(function(result) {
@@ -276,7 +278,7 @@
 			//
 			// Chunked upload strategy--------------------------------------------------
 			//
-			function AmazonChunked(data) {
+			function AmazonChunked(data, first_chunk) {
 				//
 				// resume
 				// abort
@@ -286,110 +288,58 @@
 					part_ids = [],
 					last_part = 0;
 				
+				self.state = UPLOADING;
 				
 				//
-				// Get the next part request
+				// Get the next part signature
 				//
 				function next_part(part_number) {
 					//
 					// Check if we are past the end of the file
 					//
 					if ((part_number - 1) * part_size < file.size) {
-						build_request(function(part_number){
-							if ($this.state != UPLOADING)
-								return;						// upload was aborted
+						build_request(part_number).then(function(result) {
+							if (self.state != UPLOADING)
+								return;						// upload was paused or aborted as we were reading the file
 							
-							xhr = $.ajax({
-								type: 'GET',
-								url: options.api_endpoint + '/' + upload_id + '/edit',
-								data: {
-									file_id: base64.encode(hexToBin(current_id)),
-									part: part_number
-								},
-								dataType: 'json',
-								success: function(data, textStatus, jqXHR) {
-									set_part(data, part_number);
-								},
-								error: commonError
-							});
-						}, part_number);	// END BUILD_REQUEST
+							api.edit(part_number, base64.encode(hexToBin(result.data_id))).
+								success(function(data, status, headers, config) {
+									set_part(data, result);
+								}).
+								error(defaultError);
+						
+						}, function(reason){
+							self.pause(reason);
+						});	// END BUILD_REQUEST
 						
 					} else {
 						//
 						// We're after the final commit
 						//
-						xhr = $.ajax({
-							type: 'GET',
-							url: options.api_endpoint + '/' + upload_id + '/edit',
-							data: {
-								part: 'finish'
-							},
-							dataType: 'json',
-							success: function(req, textStatus, jqXHR) {
-								xhr = $.ajax({
-									url: req.signature.url,
-									type: req.signature.verb,
-									data: generatePartManifest(),
-									processData: false,
-						        	headers: req.signature.headers,
-						        	success: completeUpload,
-						        	error: commonError
-								});
-							},
-							error: commonError
-						});
+						api.edit('finish').
+							success(function(data, status, headers, config) {
+								api.process_request(data).then(completeUpload, defaultError);
+							}).
+							error(defaultError);
 					}
 				}
 				
 					
 				//
-				// Get the send a part to amazon
+				// Send a part to amazon
 				//
-				function set_part(request, part_number) {
-					$.ajax({
-						url: request.signature.url,
-						type: request.signature.verb,
-						data: current_part,
-			        	processData: false,
-			        	headers: request.signature.headers,
-			        	success: function() {
-			        		xhr = null;
-			        		part_ids.push(current_id);	// We need to record the list of part IDs for completion
-			        		last_part = part_number;
-			        		next_part(part_number + 1);
-			        	},
-			        	error: function(jqXHR, textStatus, errorThrown) {
-			        		xhr = null;
-			        		if (!(userAborted(jqXHR) && textStatus == 'abort')) {
-			        			//
-				        		// TODO:: We want to retry this on failure
-				        		//
-								$this.pause('upload error');
-								element.trigger('error', [file, self, errorThrown]);
-			        		}
-							element.trigger('progress', [file, (part_number - 1) * part_size]);
-						},
-			        	xhr: function() {
-							xhr = $.ajaxSettings.xhr();
-							if(!!xhr.upload){
-								xhr.upload.addEventListener("progress", function(e) {
-									if (e.lengthComputable) {
-										element.trigger('progress', [file, (part_number - 1) * part_size + e.loaded]);
-									}
-								}, false);
-							}
-							return xhr;
-						}
+				function set_part(request, part_info) {
+					request['data'] = part_info.data;
+					api.process_request(data, function(progress) {
+						self.progress = (part_info.part_number - 1) * part_size + progress;
+					}).then(function(result) {
+						part_ids.push(part_info.data_id);	// We need to record the list of part IDs for completion
+			        		last_part = part_info.part_number;
+			        		next_part(last_part + 1);
+					}, function(reason) {
+						self.progress = (part_info.part_number - 1) * part_size;
+						defaultError();
 					});
-				}
-				
-				
-				function commonError(jqXHR, textStatus, errorThrown) {
-					xhr = null;
-	        		if (!(userAborted(jqXHR) && textStatus == 'abort')) {
-						$this.pause('upload error');
-						element.trigger('error', [file, self, errorThrown]);
-					}
 				}
 				
 				
@@ -402,68 +352,23 @@
 					list += '</CompleteMultipartUpload>';
 					return list;
 				}
-				
-				
-				function completeUpload() {
-					xhr = $.ajax({				// NOTE:: Almost exactly the same as for direct uploads (Update both, not very dry I know.)
-						type: 'POST',
-						url: options.api_endpoint + '/' + upload_id,
-						data: {
-							'_method':'PUT'
-						},
-			        	success: function(){
-			        		xhr = null;
-			        		$this.state = COMPLETED;
-							element.trigger('completed', [file, self]);
-			        	},
-			        	error: function(jqXHR, textStatus, errorThrown) {
-			        		xhr = null;
-			        		if (!(userAborted(jqXHR) && textStatus == 'abort')) {
-								//
-								// We don't want to call pause here
-								//	as we want resume (or retry) to call resume.
-								//
-								$this.state = PAUSED;
-								element.trigger('paused', [file, self, 'unknown error']);
-								element.trigger('error', [file, self, errorThrown]);
-							}
-						}
-					});
-				}
 					
 	
 				this.resume = function() {
-					this.state = UPLOADING;
+					self.state = UPLOADING;
 					next_part(last_part + 1);
-					element.trigger('uploading', [file, self]);
 				};
 				
-				this.pause = function(reason) {
-					if(this.state == UPLOADING) {
-						if(!!xhr)
-							xhr.abort();
-							
-						this.state = PAUSED;
-						element.trigger('paused', [file, self, reason]);
-					}
+				this.pause = function() {
+					api.abort();
 				};
-				
-				
-				
-				this.state = UPLOADING;
 				
 				
 				//
 				// We need to check if we are grabbing a parts list or creating an upload
 				//
-				xhr = $.ajax({
-					url: data.signature.url,
-					type: data.signature.verb,
-		        	headers: data.signature.headers,
-		        	dataType: 'xml',
-		        	success: function(response, textStatus, jqXHR){
-		        		if(data.type == 'parts') {	// was the original request for a list of parts
-		        			xhr = null;
+				api.process_request(data).then(function(result) {
+					if(data.type == 'parts') {	// was the original request for a list of parts
 		        			//
 		        			// NextPartNumberMarker == the final part in the current request
 		        			//	TODO:: if IsTruncated is set then we need to keep getting parts
@@ -483,43 +388,22 @@
 		        			// We've created the upload - we need to update the application with the upload id.
 		        			//	This will also return the request for uploading the first part which we've already prepared
 		        			//
-		        			xhr = $.ajax({
-								type: 'POST',
-								url: options.api_endpoint + '/' + upload_id,
-								data: {
-									'_method':'PUT',
-									resumable_id: $(response).find('UploadId').eq(0).text(),
-									file_id: base64.encode(hexToBin(current_id)),
-									part: 1
-								},
-					        	success: function(req){
-					        		set_part(req, 1);			// Parts start at 1
-					        	},
-					        	error: function(jqXHR, textStatus, errorThrown) {
-					        		xhr = null;
-					        		restart();		// Easier to start from the beginning
-					        		
-					        		if (!(userAborted(jqXHR) && textStatus == 'abort')) {
-										$this.pause('upload error');
-										element.trigger('error', [file, self, errorThrown]);
-									}
-								}
-							});
+						api.update({
+							resumable_id: $(response).find('UploadId').eq(0).text(),
+							file_id: base64.encode(hexToBin(first_chunk.data_id)),
+							part: 1
+						}).
+						success(function(data, status, headers, config) {
+							set_part(data, first_chunk);		// Parts start at 1
+						}).error(function(data, status, headers, config) {
+							defaultError();
+							restart();				// Easier to start from the beginning
+						});
 		        		}
-		        	},
-		        	error: function(jqXHR, textStatus, errorThrown) {
-		        		xhr = null;
-		        		restart();		// We need to get a new request signature
-		        		
-		        		if (!(userAborted(jqXHR) && textStatus == 'abort')) {
-							$this.pause('upload error');
-							element.trigger('error', [file, self, errorThrown]);
-						}
-					}
+				}, function(reason) {
+					defaultError();
+					restart();		// We need to get a new request signature
 				});
-				
-				
-				element.trigger('uploading', [file, self]);
 			} // END CHUNKED
 		} // END AMAZON
 		
