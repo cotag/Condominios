@@ -31,7 +31,7 @@
 	//	We should split all these into different files too (controller and factories separate from directives and views)
 	//	So we can have different views for the same controller
 	//
-	uploads.factory('AmazonS3Condo', ['$q', function($q) {
+	uploads.factory('Condo.AmazonS3', ['$q', function($q) {
 		var current_uploads = {},
 			PENDING = -1,
 			STARTED = 0,
@@ -68,6 +68,7 @@
 			
 			this.state = PENDING;
 			this.progress = 0;
+			this.message = null;
 			
 			//
 			// Support file slicing
@@ -140,6 +141,7 @@
 						}
 					}
 					
+					this.message = null;
 					this.state = STARTED;
 					strategy = {};			// This function shouldn't be called twice so we need a state (TODO:: fix this)
 					
@@ -163,6 +165,7 @@
 					
 					
 				} else if (strategy.state == PAUSED) {				// We need to resume the upload if it is paused
+					this.message = null;
 					strategy.resume();
 				}
 			};
@@ -175,6 +178,8 @@
 					this.state = PAUSED;
 					restart();
 				}
+				if(this.state == PAUSED)
+					this.message = reason;
 			};
 			
 			this.abort = function(reason) {
@@ -284,8 +289,7 @@
 				// abort
 				// pause
 				//
-				var $this = this,
-					part_ids = [],
+				var part_ids = [],
 					last_part = 0;
 				
 				self.state = UPLOADING;

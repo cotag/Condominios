@@ -33,7 +33,7 @@
 	//
 	// Implements the Condo API
 	//
-	uploads.factory('CondoApi', ['$http', '$q', 'AmazonS3Condo', function($http, $q, AmazonS3Condo) {
+	uploads.factory('Condo.Api', ['$http', '$q', 'Condo.AmazonS3', function($http, $q, AmazonS3Condo) {
 		
 		
 		var token = $('meta[name="csrf-token"]').attr('content'),
@@ -209,6 +209,10 @@
 					if(!!residencies[result.residence]) {
 						
 						var api = new condoConnection(api_endpoint, params);
+						
+						//
+						// TODO:: Check if a file is already in the list and reject if it is
+						//
 						return residencies[result.residence].new_upload(api, the_file, options);	// return the instantiated provider
 						
 					} else {

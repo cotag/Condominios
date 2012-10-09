@@ -1,0 +1,27 @@
+
+<div class="uploads" co-uploads data-ng-controller="UploadsCtrl">		<!-- NOTE:: Controller Name: UploadsCtrl -->
+	<div class="upload" data-ng-repeat="upload in uploads">
+		<div class="description">
+			<table>
+				<tr>
+					<td class="icon image"></td>
+					<td class="name">{{upload.name}}</td>
+				</tr>
+			</table>
+		</div>
+		<div class="stats">
+			<table>
+				<tr>
+					<td class="size">{{upload.size}}</td>
+					<td class="controls image uploading"></td>
+					<td class="progressbar">
+						<div class="progress" role="progressbar" aria-live="polite" aria-valuenow="30" aria-valuemin="0" aria-valuemax="100">
+							<div class="bar" style="width:30%"></div>
+						</div>
+					</td>
+					<td class="abort image"></td>
+				</tr>
+			</table>
+		</div>
+	</div>
+</div>
