@@ -38,11 +38,11 @@
 			PAUSED = 1,
 			UPLOADING = 2,
 			COMPLETED = 3,
-			ABORTED = 4;
+			ABORTED = 4,
 		
 		
 		
-		function hexToBin(input) {
+		hexToBin = function(input) {
 			var result = "";
 			
 			if ((input.length % 2) > 0) {
@@ -54,49 +54,36 @@
 			}
 			
 			return result;
-		}
+		},
 		
 		
-		function Amazon(api, file, options) {
+		Amazon = function (api, file) {
 			var self = this,
 				strategy = null,
 				part_size = 5242880,			// Multi-part uploads should be bigger then this
 				defaultError = function() {
 					self.pause('issue with upload');
-				};
-				
-			
-			this.state = PENDING;
-			this.progress = 0;
-			this.message = null;
-			
-			//
-			// Support file slicing
-			//	
-			if (typeof(file.slice) != 'function')
-				file.slice = file.webkitSlice || file.mozSlice;
-			
-				
-				
-			function restart() {
+				},
+
+			restart = function() {
 				strategy = null;
-			}
+			},
 
 
-			function completeUpload() {
+			completeUpload = function() {
 				api.update().
 					success(function(data, status, headers, config) {
 						self.state = COMPLETED;
 					}).
 					error(defaultError);
-			}
+			},
 			
 			
 			//
 			// We need to sign our uploads so amazon can confirm they are valid for us
 			//	Part numbers can be any number from 1 to 10,000 - inclusive
 			//
-			function build_request(part_number) {
+			build_request = function(part_number) {
 				var result = $q.defer(),
 					reader = new FileReader(),
 					fail = function(){
@@ -125,7 +112,200 @@
 				reader.readAsBinaryString(current_part);
 				
 				return result.promise;
-			}
+			},
+
+			//
+			// Direct file upload strategy
+			//
+			AmazonDirect = function(data) {
+				//
+				// resume
+				// abort
+				// pause
+				//
+				var $this = this,
+					finalising = false;
+					
+				//
+				// Update the parent
+				//
+				self.state = UPLOADING;
+	
+				
+				//
+				// This will only be called when the upload has finished and we need to inform the application
+				//
+				this.resume = function() {
+					self.state = UPLOADING;
+					completeUpload();
+				}
+				
+				this.pause = function() {
+					api.abort();
+						
+					if(!finalising) {
+						restart();		// Should occur before events triggered
+						self.progress = 0;
+					}
+				};
+				
+				
+				//
+				// AJAX for upload goes here
+				//
+				data['data'] = file;
+				api.process_request(data, function(progress) {
+					self.progress = progress;
+				}).then(function(result) {
+					finalising = true;
+		        	$this.resume();				// Resume informs the application that the upload is complete
+				}, function(reason) {
+					self.progress = 0;
+					defaultError();
+				});
+			} // END DIRECT
+
+
+			//
+			// Chunked upload strategy--------------------------------------------------
+			//
+			var AmazonChunked = function (data, first_chunk) {
+				//
+				// resume
+				// abort
+				// pause
+				//
+				var part_ids = [],
+					last_part = 0,
+				
+				//
+				// Get the next part signature
+				//
+				next_part = function(part_number) {
+					//
+					// Check if we are past the end of the file
+					//
+					if ((part_number - 1) * part_size < file.size) {
+						build_request(part_number).then(function(result) {
+							if (self.state != UPLOADING)
+								return;						// upload was paused or aborted as we were reading the file
+							
+							api.edit(part_number, base64.encode(hexToBin(result.data_id))).
+								success(function(data, status, headers, config) {
+									set_part(data, result);
+								}).
+								error(defaultError);
+						
+						}, function(reason){
+							self.pause(reason);
+						});	// END BUILD_REQUEST
+						
+					} else {
+						//
+						// We're after the final commit
+						//
+						api.edit('finish').
+							success(function(data, status, headers, config) {
+								api.process_request(data).then(completeUpload, defaultError);
+							}).
+							error(defaultError);
+					}
+				},
+				
+					
+				//
+				// Send a part to amazon
+				//
+				set_part = function(request, part_info) {
+					request['data'] = part_info.data;
+					api.process_request(data, function(progress) {
+						self.progress = (part_info.part_number - 1) * part_size + progress;
+					}).then(function(result) {
+						part_ids.push(part_info.data_id);	// We need to record the list of part IDs for completion
+			        		last_part = part_info.part_number;
+			        		next_part(last_part + 1);
+					}, function(reason) {
+						self.progress = (part_info.part_number - 1) * part_size;
+						defaultError();
+					});
+				},
+				
+				
+				generatePartManifest = function() {
+					var list = '<CompleteMultipartUpload>';
+					
+					for (var i = 0, length = part_ids.length; i < length; i += 1) {
+						list += '<Part><PartNumber>' + (i + 1) + '</PartNumber><ETag>"' + part_ids[i] + '"</ETag></Part>';
+					}
+					list += '</CompleteMultipartUpload>';
+					return list;
+				};
+					
+
+				self.state = UPLOADING;
+	
+				this.resume = function() {
+					self.state = UPLOADING;
+					next_part(last_part + 1);
+				};
+				
+				this.pause = function() {
+					api.abort();
+				};
+				
+				
+				//
+				// We need to check if we are grabbing a parts list or creating an upload
+				//
+				api.process_request(data).then(function(result) {
+					if(data.type == 'parts') {	// was the original request for a list of parts
+		        			//
+		        			// NextPartNumberMarker == the final part in the current request
+		        			//	TODO:: if IsTruncated is set then we need to keep getting parts
+		        			//
+		        			response = $(response);
+		        			var next = parseInt(response.find('NextPartNumberMarker').eq(0).text()),
+		        				etags = response.find('ETag');
+		        			
+		        			etags.each(function(index) {
+		        				part_ids.push($(this).text().replace(/"{1}/gi,''));	// Removes " from strings
+		        			});
+		        			
+		        			last_part = next;		// So we can resume
+		        			next_part(next + 1);	// As NextPartNumberMarker is just the last part uploaded
+		        		} else {
+		        			//
+		        			// We've created the upload - we need to update the application with the upload id.
+		        			//	This will also return the request for uploading the first part which we've already prepared
+		        			//
+						api.update({
+							resumable_id: $(response).find('UploadId').eq(0).text(),
+							file_id: base64.encode(hexToBin(first_chunk.data_id)),
+							part: 1
+						}).
+						success(function(data, status, headers, config) {
+							set_part(data, first_chunk);		// Parts start at 1
+						}).error(function(data, status, headers, config) {
+							defaultError();
+							restart();				// Easier to start from the beginning
+						});
+		        		}
+				}, function(reason) {
+					defaultError();
+					restart();		// We need to get a new request signature
+				});
+			}; // END CHUNKED
+				
+			
+			this.state = PENDING;
+			this.progress = 0;
+			this.message = null;
+			
+			//
+			// Support file slicing
+			//	
+			if (typeof(file.slice) != 'function')
+				file.slice = file.webkitSlice || file.mozSlice;
 			
 			
 			this.start = function(){
@@ -226,195 +406,12 @@
 					}
 				}
 			};
-			
-			//
-			// Direct file upload strategy
-			//
-			function AmazonDirect(data) {
-				//
-				// resume
-				// abort
-				// pause
-				//
-				var $this = this,
-					finalising = false;
-					
-				//
-				// Update the parent
-				//
-				self.state = UPLOADING;
-	
-				
-				//
-				// This will only be called when the upload has finished and we need to inform the application
-				//
-				this.resume = function() {
-					self.state = UPLOADING;
-					completeUpload();
-				}
-				
-				this.pause = function() {
-					api.abort();
-						
-					if(!finalising) {
-						restart();		// Should occur before events triggered
-						self.progress = 0;
-					}
-				};
-				
-				
-				//
-				// AJAX for upload goes here
-				//
-				data['data'] = file;
-				api.process_request(data, function(progress) {
-					self.progress = progress;
-				}).then(function(result) {
-					finalising = true;
-		        	$this.resume();				// Resume informs the application that the upload is complete
-				}, function(reason) {
-					self.progress = 0;
-					defaultError();
-				});
-			} // END DIRECT
-			
-			
-			
-			//
-			// Chunked upload strategy--------------------------------------------------
-			//
-			function AmazonChunked(data, first_chunk) {
-				//
-				// resume
-				// abort
-				// pause
-				//
-				var part_ids = [],
-					last_part = 0;
-				
-				self.state = UPLOADING;
-				
-				//
-				// Get the next part signature
-				//
-				function next_part(part_number) {
-					//
-					// Check if we are past the end of the file
-					//
-					if ((part_number - 1) * part_size < file.size) {
-						build_request(part_number).then(function(result) {
-							if (self.state != UPLOADING)
-								return;						// upload was paused or aborted as we were reading the file
-							
-							api.edit(part_number, base64.encode(hexToBin(result.data_id))).
-								success(function(data, status, headers, config) {
-									set_part(data, result);
-								}).
-								error(defaultError);
-						
-						}, function(reason){
-							self.pause(reason);
-						});	// END BUILD_REQUEST
-						
-					} else {
-						//
-						// We're after the final commit
-						//
-						api.edit('finish').
-							success(function(data, status, headers, config) {
-								api.process_request(data).then(completeUpload, defaultError);
-							}).
-							error(defaultError);
-					}
-				}
-				
-					
-				//
-				// Send a part to amazon
-				//
-				function set_part(request, part_info) {
-					request['data'] = part_info.data;
-					api.process_request(data, function(progress) {
-						self.progress = (part_info.part_number - 1) * part_size + progress;
-					}).then(function(result) {
-						part_ids.push(part_info.data_id);	// We need to record the list of part IDs for completion
-			        		last_part = part_info.part_number;
-			        		next_part(last_part + 1);
-					}, function(reason) {
-						self.progress = (part_info.part_number - 1) * part_size;
-						defaultError();
-					});
-				}
-				
-				
-				function generatePartManifest() {
-					var list = '<CompleteMultipartUpload>';
-					
-					for (var i = 0, length = part_ids.length; i < length; i += 1) {
-						list += '<Part><PartNumber>' + (i + 1) + '</PartNumber><ETag>"' + part_ids[i] + '"</ETag></Part>';
-					}
-					list += '</CompleteMultipartUpload>';
-					return list;
-				}
-					
-	
-				this.resume = function() {
-					self.state = UPLOADING;
-					next_part(last_part + 1);
-				};
-				
-				this.pause = function() {
-					api.abort();
-				};
-				
-				
-				//
-				// We need to check if we are grabbing a parts list or creating an upload
-				//
-				api.process_request(data).then(function(result) {
-					if(data.type == 'parts') {	// was the original request for a list of parts
-		        			//
-		        			// NextPartNumberMarker == the final part in the current request
-		        			//	TODO:: if IsTruncated is set then we need to keep getting parts
-		        			//
-		        			response = $(response);
-		        			var next = parseInt(response.find('NextPartNumberMarker').eq(0).text()),
-		        				etags = response.find('ETag');
-		        			
-		        			etags.each(function(index) {
-		        				part_ids.push($(this).text().replace(/"{1}/gi,''));	// Removes " from strings
-		        			});
-		        			
-		        			last_part = next;		// So we can resume
-		        			next_part(next + 1);	// As NextPartNumberMarker is just the last part uploaded
-		        		} else {
-		        			//
-		        			// We've created the upload - we need to update the application with the upload id.
-		        			//	This will also return the request for uploading the first part which we've already prepared
-		        			//
-						api.update({
-							resumable_id: $(response).find('UploadId').eq(0).text(),
-							file_id: base64.encode(hexToBin(first_chunk.data_id)),
-							part: 1
-						}).
-						success(function(data, status, headers, config) {
-							set_part(data, first_chunk);		// Parts start at 1
-						}).error(function(data, status, headers, config) {
-							defaultError();
-							restart();				// Easier to start from the beginning
-						});
-		        		}
-				}, function(reason) {
-					defaultError();
-					restart();		// We need to get a new request signature
-				});
-			} // END CHUNKED
-		} // END AMAZON
+		}; // END AMAZON
 		
 		
 		return {
-			new_upload: function(api, file, options) {
-				return new Amazon(api, file, options);
+			new_upload: function(api, file) {
+				return new Amazon(api, file);
 			}
 		};
 		

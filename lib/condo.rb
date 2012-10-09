@@ -10,6 +10,12 @@ require 'condo/configuration'
 
 module Condo
 	
+	#
+	# TODO:: Simplify the parameters passed in
+	#	Object options should be set at the application level
+	#	The application can set these based on the custom params.
+	#	Have an instance member that holds the parameter set: @upload
+	#
 	def self.included(base)
 		base.class_eval do
 			

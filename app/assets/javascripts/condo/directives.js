@@ -12,7 +12,7 @@
 * 		* https://github.com/umdjs/umd
 * 		* https://github.com/addyosmani/jquery-plugin-patterns
 *		* http://ie.microsoft.com/testdrive/ieblog/2011/oct/PointerDraw.js.source.html
-*		* 
+*		* http://docs.angularjs.org/guide/directive
 *
 **/
 
@@ -37,7 +37,7 @@
 		//
 		// Opera doesn't have Object.keys so we use this wrapper
 		//
-		function NumberOfKeys(theObject) {
+		var NumberOfKeys = function(theObject) {
 			if (Object.keys)
 				return Object.keys(theObject).length;
 			
@@ -46,8 +46,7 @@
 				++n;
 			
 			return n;
-		}
-		
+		};
 		
 		return function(scope, element, attrs) {
 			var useSetReleaseCapture = false,
@@ -151,37 +150,33 @@
 		};
 	});
 	
-	
-	
 	//
 	// create a directive for attaching the input events
 	//
 	uploads.directive('coUploads', function() {
-		function allowFile() {
-			return true;
-		}		
-		
-		return function(scope, element, attrs) {
-			
+		return function(scope, element, attrs) {				
 			var options = {
 				delegate: $(attrs['coDelegate']) || element,
 				drop_targets: $(attrs['coTargets']) || element,
-				pre_check: allowFile
-				//file_checker: attrs['co-targets'] || allowFile			// TODO:: workout how to achieve this
-				//api_endpoint: '/uploads',	// Defined by the controller
+				pre_check: $(attrs['coAccepts']) || /.$/i,
+				size_limit: $(attrs['coLimit']) || 0
 			};
 			
-			
-			
-						
-		};
+			if(!!attrs['coEndpoint'])
+				scope.endpoint = attrs['coEndpoint'];
+
+			//
+			// TODO:: attach events
+			//
+		}
 	});
 	
 	
 	//
 	// The individual upload events
+	//	Triggers the pause, resume, abort functions
 	//
-	uploads.directive('coUploads', function() {
+	uploads.directive('coUpload', function() {
 		return function(scope, element, attrs) {
 			
 		};

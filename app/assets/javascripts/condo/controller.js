@@ -34,10 +34,21 @@
 	uploads.controller('UploadsCtrl' ['$scope', 'Condo.Api', function($scope, api) {
 		
 		$scope.uploads = [];
+		$scope.endpoint = '/uploads';
 		
-		$scope.addFile = function(file) {
-			api.check_provider(file).then();
-		}
+		$scope.add = function(file) {
+			api.check_provider($scope.endpoint, file).then(function(upload){
+				$scope.uploads.push(upload);
+			}, function(failure){
+				
+			});
+		};
+
+		$scope.remove = function(upload) {
+			//
+			// TODO:: find the upload and remove it
+			//
+		};
 		
 	}]);
 	

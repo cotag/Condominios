@@ -39,23 +39,24 @@
 		var token = $('meta[name="csrf-token"]').attr('content'),
 			residencies = {
 				AmazonS3: AmazonS3Condo
-			};
-		
-		$http.defaults.headers = {};
-		$http.defaults.headers['common']['X-Requested-With'] = 'XMLHttpRequest';
-		$http.defaults.headers['post']['X-CSRF-Token'] = token;
-		$http.defaults.headers['put']['X-CSRF-Token'] = token;
-		$http.defaults.headers['delete']['X-CSRF-Token'] = token;
+			},
 
 		
-		function condoConnection(api_endpoint, params) {
+		condoConnection = function(api_endpoint, params) {
 			this.endpoint = api_endpoint;		// The API mounting point
 			this.params = params;				// Custom API parameters
 			
 			this.upload_id = null;		// The current upload ID
 			this.aborting = false;		// Has the user has requested an abort?
 			this.xhr = null;			// Any active cloud file xhr requests
-		}
+		};
+
+
+		$http.defaults.headers = {};
+		$http.defaults.headers['common']['X-Requested-With'] = 'XMLHttpRequest';
+		$http.defaults.headers['post']['X-CSRF-Token'] = token;
+		$http.defaults.headers['put']['X-CSRF-Token'] = token;
+		$http.defaults.headers['delete']['X-CSRF-Token'] = token;
 		
 		condoConnection.prototype = {
 			
@@ -196,7 +197,7 @@
 			//
 			// Used to determine what upload strategy to use (Amazon, Google, etc)
 			//
-			check_provider: function(api_endpoint, the_file, options, params) {
+			check_provider: function(api_endpoint, the_file, params) {
 				params = params || {};
 				params['file_size'] = the_file.size;
 				params['file_name'] = the_file.name;
@@ -213,7 +214,7 @@
 						//
 						// TODO:: Check if a file is already in the list and reject if it is
 						//
-						return residencies[result.residence].new_upload(api, the_file, options);	// return the instantiated provider
+						return residencies[result.residence].new_upload(api, the_file);	// return the instantiated provider
 						
 					} else {
 						return $q.reject('provider not found');
