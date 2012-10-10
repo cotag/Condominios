@@ -172,7 +172,7 @@ class Condo::Strata::AmazonS3
 			#
 			# Send the commitment response
 			#
-			options[:object_options][:headers]['Content-Type'] = 'application/xml' if options[:object_options][:headers]['Content-Type'].nil?
+			options[:object_options][:headers]['Content-Type'] = 'application/xml; charset=UTF-8' if options[:object_options][:headers]['Content-Type'].nil?
 			options[:object_options][:verb] = :post
 			request[:type] = :finish
 		else
