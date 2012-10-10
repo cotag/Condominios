@@ -4,7 +4,7 @@
 	</div>
 	<div class="condo-uploads-container">
 		<div class="condo-uploads">		<!-- NOTE:: Controller Name: UploadsCtrl -->
-			<div class="condo-upload ng-cloak" data-ng-repeat="upload in uploads">
+			<div class="condo-upload ng-cloak" co-upload data-ng-repeat="upload in uploads">
 				<div class="description">
 					<table>
 						<tr>
@@ -16,7 +16,7 @@
 				<div class="stats">
 					<table>
 						<tr>
-							<td class="size">{{upload.size}}</td>
+							<td class="size" ng-init="x = humanReadableByteCount(upload.size, false)">{{x}}</td>
 							<td class="controls image paused" co-tap="playpause(upload)"></td>
 							<td class="progressbar">
 								<div class="progress" role="progressbar" aria-live="polite" aria-valuenow="30" aria-valuemin="0" aria-valuemax="100">

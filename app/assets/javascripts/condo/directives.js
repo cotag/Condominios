@@ -236,6 +236,15 @@
 				options.delegate.off('.condo');
 				element.removeClass('supports-svg').removeClass('no-svg');
 			});
+			
+			
+			scope.humanReadableByteCount = function(bytes, si) {
+				var unit = si ? 1000.0 : 1024.0;
+				if (bytes < unit) return bytes + (si ? ' iB' : ' B');
+				var exp = Math.floor(Math.log(bytes) / Math.log(unit)),
+					pre = (si ? 'kMGTPE' : 'KMGTPE').charAt(exp-1) + (si ? 'iB' : 'B');
+				return (bytes / Math.pow(unit, exp)).toFixed(1) + ' ' + pre;
+			}
 		}
 	});
 	

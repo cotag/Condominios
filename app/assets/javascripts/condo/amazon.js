@@ -80,6 +80,8 @@
 			//
 			// We need to sign our uploads so amazon can confirm they are valid for us
 			//	Part numbers can be any number from 1 to 10,000 - inclusive
+			//	TODO:: use http://updates.html5rocks.com/2011/12/Transferable-Objects-Lightning-Fast
+			//		where available :)
 			//
 			build_request = function(part_number) {
 				var result = $q.defer(),
