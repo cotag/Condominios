@@ -50,20 +50,29 @@
 		
 		return function(scope, element, attrs) {
 			var useSetReleaseCapture = false,
-				tracker = {};
+				tracker = {},
+				
+			safeApply = function(fn) {
+				var phase = scope.$root.$$phase;
+				if(phase == '$apply' || phase == '$digest') {
+					fn();
+				} else {
+					scope.$apply(fn);
+				}
+			},
 			
 			// common event handler for the mouse/pointer/touch models and their down/start, move, up/end, and cancel events
-			function DoEvent(event) {
-				var theEvtObj = event.originalEvent;
+			DoEvent = function(event) {
 				 
 				// optimize rejecting mouse moves when mouse is up
-				if (theEvtObj.type == "mousemove" && NumberOfKeys(tracker) == 0)
+				if (event.originalEvent.type == "mousemove" && NumberOfKeys(tracker) == 0)
 					return;
-				 
-				var pointerList = theEvtObj.changedTouches ? theEvtObj.changedTouches : [theEvtObj];
+				
+				var theEvtObj = event.originalEvent,
+					pointerList = theEvtObj.changedTouches ? theEvtObj.changedTouches : [theEvtObj];
 				for (var i = 0; i < pointerList.length; ++i) {
-					var pointerObj = pointerList[i];
-					var pointerId = (typeof pointerObj.identifier != 'undefined') ? pointerObj.identifier : (typeof pointerObj.pointerId != 'undefined') ? pointerObj.pointerId : 1;
+					var pointerObj = pointerList[i],
+						pointerId = (typeof pointerObj.identifier != 'undefined') ? pointerObj.identifier : (typeof pointerObj.pointerId != 'undefined') ? pointerObj.pointerId : 1;
 					 
 					if (theEvtObj.type.match(/(start|down)$/i)) {
 						// clause for processing MSPointerDown, touchstart, and mousedown
@@ -104,7 +113,7 @@
 						var target = tracker[pointerId].element;
 						 
 						if (!theEvtObj.type.match(/cancel$/i) && tracker[pointerId].execute === true)
-							scope.$apply(attrs['coTap']);	// Apply the click, touch, point event
+							safeApply(attrs['coTap']);	// Apply the click, touch, point event
 						
 						delete tracker[pointerId];
 						
@@ -124,7 +133,7 @@
 						}
 					}
 				}
-			}
+			};
  
 			if (window.navigator.msPointerEnabled) {
 				// Microsoft pointer model
@@ -135,7 +144,7 @@
 				
 				// mouse model with capture
 				// rejecting gecko because, unlike ie, firefox does not send events to target when the mouse is outside target
-				if (element[0].setCapture && !window.navigator.userAgent.match(/\bGecko\b/)) {
+				if (element[0].setCapture && !window.navigator.userAgent.match(/\bGecko\b/))
 					useSetReleaseCapture = true;
 			}
 			
@@ -147,6 +156,8 @@
 				$(document).off('mousemove mouseup', DoEvent);
 				element.off('.condo');
 			});
+			
+			
 		};
 	});
 	
@@ -156,18 +167,75 @@
 	uploads.directive('coUploads', function() {
 		return function(scope, element, attrs) {				
 			var options = {
-				delegate: $(attrs['coDelegate']) || element,
-				drop_targets: $(attrs['coTargets']) || element,
-				pre_check: $(attrs['coAccepts']) || /.$/i,
-				size_limit: $(attrs['coLimit']) || 0
+				delegate: attrs['coDelegate'] || element,
+				drop_targets: attrs['coTargets'] || element,
+				hover_class: attrs['coHoverClass'] || 'drag-hover',
+				pre_check: attrs['coAccepts'] || '/./i',
+				size_limit: attrs['coLimit'] || 0
 			};
+			
 			
 			if(!!attrs['coEndpoint'])
 				scope.endpoint = attrs['coEndpoint'];
-
+				
+				
+			scope.options = options;
+			
+			
 			//
-			// TODO:: attach events
+			// Determine how to draw the element
 			//
+			if(document.implementation.hasFeature("org.w3c.svg", "1.0")) {
+				element.addClass('supports-svg');
+			} else {
+				element.addClass('no-svg');
+			}
+				
+				
+			//
+			// Detect file drops
+			//
+			options.drop_targets = $(options.drop_targets);
+			options.delegate = $(options.delegate).on('drop.condo', options.drop_targets, function(event) {
+				options.drop_targets.removeClass(options.hover_class);
+				
+				//
+				// Prevent propagation early (so any errors don't cause unwanted behaviour)
+				//
+				event.preventDefault();
+				event.stopPropagation();
+				
+				scope.add(event.originalEvent.dataTransfer.files);
+			}).on('dragover.condo', options.drop_targets, function(event) {
+				$(this).addClass(options.hover_class);
+				
+				return false;
+			}).on('dragleave.condo', options.drop_targets, function(event) {
+				$(this).removeClass(options.hover_class);
+				
+				return false;
+			}).
+			
+			
+			//
+			// Detect manual file uploads
+			//
+			on('change.condo', ':file', function(event) {
+				
+				scope.add($(this)[0].files);
+				$(this).parent()[0].reset();
+				
+			});
+			
+			
+			//
+			// Clean up any event handlers
+			//
+			scope.$on('$destroy', function() {
+				options.drop_targets.off('.condo');
+				options.delegate.off('.condo');
+				element.removeClass('supports-svg').removeClass('no-svg');
+			});
 		}
 	});
 	

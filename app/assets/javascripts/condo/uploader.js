@@ -33,7 +33,7 @@
 	//
 	// Implements the Condo API
 	//
-	uploads.factory('Condo.Api', ['$http', '$q', 'Condo.AmazonS3', function($http, $q, AmazonS3Condo) {
+	uploads.factory('Condo.Api', ['$http', '$rootScope', '$q', 'Condo.AmazonS3', function($http, $rootScope, $q, AmazonS3Condo) {
 		
 		
 		var token = $('meta[name="csrf-token"]').attr('content'),
@@ -53,10 +53,10 @@
 
 
 		$http.defaults.headers = {};
-		$http.defaults.headers['common']['X-Requested-With'] = 'XMLHttpRequest';
-		$http.defaults.headers['post']['X-CSRF-Token'] = token;
-		$http.defaults.headers['put']['X-CSRF-Token'] = token;
-		$http.defaults.headers['delete']['X-CSRF-Token'] = token;
+		$http.defaults.headers['common'] = {'X-Requested-With': 'XMLHttpRequest'};
+		$http.defaults.headers['post'] = {'X-CSRF-Token': token};
+		$http.defaults.headers['put'] = {'X-CSRF-Token': token};
+		$http.defaults.headers['delete'] = {'X-CSRF-Token': token};
 		
 		condoConnection.prototype = {
 			
@@ -72,14 +72,15 @@
 				if(!!options['file_id'])
 					this.params['file_id'] = options['file_id'];
 				
-				if(!!options['options'])
-					this.params['object_options'] = options['options'];		// We may be requesting the next set of parts
+				if(!!options['parameters'])
+					this.params['parameters'] = options['parameters'];		// We may be requesting the next set of parts
 				
 				return $http({
 					method: 'POST',
 					url: this.endpoint,
 					params: this.params
 				}).then(function(result){
+					result = result.data;
 					self.upload_id = result.upload_id;	// Extract the upload id from the results
 					delete result.upload_id;
 					return result;
@@ -99,6 +100,8 @@
 						part: part_number,
 						file_id: part_id
 					}
+				}).then(function(result){
+					return result.data;
 				});
 			},
 			
@@ -114,6 +117,8 @@
 					method: 'PUT',
 					url: this.endpoint + '/' + this.upload_id,
 					params: params
+				}).then(function(result){
+					return result.data;
 				});
 			},
 			
@@ -126,6 +131,8 @@
 				return $http({
 					method: 'DELETE',
 					url: this.endpoint + '/' + this.upload_id
+				}).then(function(result){
+					return result.data;
 				});
 			},
 			
@@ -138,9 +145,9 @@
 				var self = this,
 					result = $q.defer(),
 					params = {
-						url: signature.url,
-						type: signature.verb,
-						headers: signature.headers,
+						url: signature.signature.url,
+						type: signature.signature.verb,
+						headers: signature.signature.headers,
 						processData: false,
 						success: function(response, textStatus, jqXHR) {
 							self.xhr = null;
@@ -149,6 +156,9 @@
 						error: function(jqXHR, textStatus, errorThrown) {
 							self.xhr = null;
 							result.reject('upload failed');
+						},
+						complete: function(jqXHR, textStatus) {
+							$rootScope.$apply();					// This triggers the promise response
 						}
 					};
 					
@@ -207,14 +217,14 @@
 					url: api_endpoint + '/new',
 					params: params
 				}).then(function(result){
-					if(!!residencies[result.residence]) {
+					if(!!residencies[result.data.residence]) {
 						
 						var api = new condoConnection(api_endpoint, params);
 						
 						//
 						// TODO:: Check if a file is already in the list and reject if it is
 						//
-						return residencies[result.residence].new_upload(api, the_file);	// return the instantiated provider
+						return residencies[result.data.residence].new_upload(api, the_file);	// return the instantiated provider
 						
 					} else {
 						return $q.reject('provider not found');

@@ -1,0 +1,308 @@
+/**
+*	CoTag Condo Example Uploader
+*	Direct to cloud resumable uploads
+*	
+*   Copyright (c) 2012 CoTag Media.
+*	
+*	@author		Stephen von Takach <steve@cotag.me>
+*	@copyright	2012 cotag.me
+* 
+*	
+*	A responsive and resolution independent upload UI
+*
+**/
+
+
+.ng-cloak {
+	display: none;
+}
+
+
+div.condo-uploads-wrapper {
+	position: relative;
+	height: 100%;
+	width: 100%;
+	overflow:hidden;
+}
+
+
+div.condo-uploads-wrapper > div {
+	-webkit-transition: all 0.3s ease-in-out;
+    -moz-transition: all 0.3s ease-in-out;
+    -o-transition: all 0.3s ease-in-out;
+    -ms-transition: all 0.3s ease-in-out;
+    transition: all 0.3s ease-in-out;
+}
+
+
+div.condo-uploads-wrapper > div.condo-uploads-container {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 3em;
+	
+	overflow: auto;
+	overflow-x: hidden;
+}
+
+
+div.condo-uploads-wrapper > div.condo-file-selection {
+	position: absolute;
+	height: 3em;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	
+	box-shadow: 0 0 8pt #888;
+}
+
+div.condo-uploads-wrapper > div.condo-file-selection > form {
+	padding-top: 0.5em;
+	padding-left: 2em;
+}
+
+div.condo-uploads-wrapper > div.condo-drop-indicator {
+	opacity: 0;
+	
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	
+	border: 10pt solid yellow;
+	
+	text-align: center;
+}
+
+div.condo-uploads-wrapper > div.condo-drop-indicator > div {
+	display: inline-block;
+	border: 5pt solid yellow;
+	border-top: 0;
+	padding: 1em;
+}
+
+div.condo-uploads-wrapper.drag-hover > div.condo-drop-indicator {
+	opacity: 1;
+}
+
+div.condo-uploads-wrapper.drag-hover > div.condo-file-selection {
+	opacity: 0;
+}
+
+div.condo-uploads-wrapper.drag-hover > div.condo-uploads-container {
+	opacity: 0;
+}
+
+
+
+
+div.condo-uploads {
+	width: 100%;
+	text-align: center;
+}
+
+
+/*
+ * 
+ * Landscape we want to make most of the horizontal space
+ * 
+ */
+@media all and (orientation: landscape) {
+	
+	div.condo-uploads {
+		display:table;
+		table-layout: fixed;
+		border-spacing: 0;
+	}
+	
+	div.condo-upload {
+		height: 2.5em;
+		
+		display:table-row;
+	}
+	
+	div.condo-upload > div {
+		border-bottom: 1pt solid #DDD;
+		
+		display:table-cell;
+		vertical-align:middle;
+	}
+	
+	div.condo-upload > div.description {
+		width: 50%;
+	}
+	
+	div.condo-upload > div.stats {
+		width: 50%;
+	}
+	
+}
+
+/*
+ * 
+ * Portrait the upload is stacked
+ * 
+ */
+@media all and (orientation: portrait) {
+	div.condo-upload {
+		padding-top: 0.3em;
+		padding-bottom: 0.3em;
+		border-bottom: 1pt solid #DDD;
+	}
+	
+	div.condo-upload > div.description {
+		width: 100%;
+	}
+	
+	div.condo-upload > div.stats {
+		width: 100%;
+	}
+}
+
+
+/*
+ * 
+ * Portrait the upload is stacked
+ * 
+ */
+div.condo-upload > div > table {
+	width: 100%;
+	
+	table-layout: fixed;
+	border-spacing: 0;
+}
+
+div.condo-upload > div.description td.icon {
+	width: 1.8em;
+}
+
+div.condo-upload > div.description td.name {
+	text-align: left;
+	
+	white-space: nowrap;
+	overflow: hidden;
+	-webkit-text-overflow: ellipsis;
+	-moz-text-overflow: ellipsis;
+	-ms-text-overflow: ellipsis;
+	-o-text-overflow: ellipsis;
+	text-overflow: ellipsis;
+}
+
+div.condo-upload > div.stats td.controls {
+	width: 1.8em;
+}
+
+div.condo-upload > div.stats td.abort {
+	width: 1.8em;
+}
+
+
+div.condo-upload > div.stats td.size {
+	font-size: 0.8em;
+	color: #666;
+	
+	width: 5em;
+}
+
+
+
+/*
+ * 
+ * Animated progress bar like twitter bootstrap and google docs
+ * 
+ */
+div.condo-upload > div.stats td.progressbar > div.progress {
+	height: 0.7em;
+	border: 1pt solid #999;
+	padding: 1px;
+	background: white;
+}
+
+div.condo-upload > div.stats td.progressbar > div.progress > div.bar {
+	height: 100%;
+	
+	background-repeat: repeat-x;
+	background-size: 1.2em 0.7em;
+	background-color: #4A97DF;
+	background-image: -webkit-linear-gradient(315deg,transparent,transparent 33%,rgba(0, 0, 0, 0.12) 33%,rgba(0, 0, 0, 0.12) 66%,transparent 66%,transparent);
+	background-image: -moz-linear-gradient(315deg,transparent,transparent 33%,rgba(0, 0, 0, 0.12) 33%,rgba(0, 0, 0, 0.12) 66%,transparent 66%,transparent);
+	background-image: -ms-linear-gradient(315deg,transparent,transparent 33%,rgba(0, 0, 0, 0.12) 33%,rgba(0, 0, 0, 0.12) 66%,transparent 66%,transparent);
+	background-image: -o-linear-gradient(315deg,transparent,transparent 33%,rgba(0, 0, 0, 0.12) 33%,rgba(0, 0, 0, 0.12) 66%,transparent 66%,transparent);
+	background-image: linear-gradient(315deg,transparent,transparent 33%,rgba(0, 0, 0, 0.12) 33%,rgba(0, 0, 0, 0.12) 66%,transparent 66%,transparent);
+	background-attachment: scroll;
+	
+	-webkit-animation-name: progressBarBG;
+	-moz-animation-name: progressBarBG;
+	-ms-animation-name: progressBarBG;
+	-o-animation-name: progressBarBG;
+	animation-name: progressBarBG;
+	
+	-webkit-animation-duration: .8s;
+	-webkit-animation-iteration-count: infinite;
+	-webkit-animation-timing-function: linear;
+	-moz-animation-duration: .8s;
+	-moz-animation-iteration-count: infinite;
+	-moz-animation-timing-function: linear;
+	-ms-animation-duration: .8s;
+	-ms-animation-iteration-count: infinite;
+	-ms-animation-timing-function: linear;
+	-o-animation-duration: .8s;
+	-o-animation-iteration-count: infinite;
+	-o-animation-timing-function: linear;
+	animation-duration: .8s;
+	animation-iteration-count: infinite;
+	animation-timing-function: linear;
+	
+	-webkit-transition: width 1s;
+	-moz-transition: width 1s;
+	-ms-transition: width 1s;
+	-o-transition: width 1s;
+	transition: width 1s;
+}
+
+@-webkit-keyframes progressBarBG {
+	0% {
+		background-position: 0 0;
+	}
+	100% {
+		background-position: 1.2em 0;
+	}
+}
+
+@-moz-keyframes progressBarBG {
+	0% {
+		background-position: 0 0;
+	}
+	100% {
+		background-position: 1.2em 0;
+	}
+}
+
+@-ms-keyframes progressBarBG {
+	0% {
+		background-position: 0 0;
+	}
+	100% {
+		background-position: 1.2em 0;
+	}
+}
+
+@-o-keyframes progressBarBG {
+	0% {
+		background-position: 0 0;
+	}
+	100% {
+		background-position: 1.2em 0;
+	}
+}
+
+@keyframes progressBarBG {
+	0% {
+		background-position: 0 0;
+	}
+	100% {
+		background-position: 1.2em 0;
+	}
+}

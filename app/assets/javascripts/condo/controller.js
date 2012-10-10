@@ -31,23 +31,32 @@
 	//
 	// Create a controller for managing the upload states
 	//
-	uploads.controller('UploadsCtrl' ['$scope', 'Condo.Api', function($scope, api) {
+	uploads.controller('UploadsCtrl', ['$scope', 'Condo.Api', function($scope, api) {
 		
 		$scope.uploads = [];
 		$scope.endpoint = '/uploads';
 		
-		$scope.add = function(file) {
-			api.check_provider($scope.endpoint, file).then(function(upload){
-				$scope.uploads.push(upload);
-			}, function(failure){
-				
-			});
+		$scope.add = function(files) {
+			for (var i = 0, length = files.length; i < length; i += 1) {
+				api.check_provider($scope.endpoint, files[i]).then(function(upload){
+					$scope.uploads.push(upload);
+				}, function(failure){
+					alert('Upload could not be started: ' + failure);
+				});
+			}
 		};
 
 		$scope.remove = function(upload) {
 			//
 			// TODO:: find the upload and remove it
 			//
+		};
+		
+		$scope.playpause = function(upload) {
+			if (upload.state == 3)					// Uploading
+				upload.pause();
+			else
+				upload.start();
 		};
 		
 	}]);

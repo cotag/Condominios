@@ -141,9 +141,7 @@ class Condo::Strata::AmazonS3
 		#
 		# Set the upload 
 		#
-		if options[:object_options][:parameters]['uploadId'].nil?
-			options[:object_options][:parameters]['uploadId'] = options[:resumable_id]
-		end
+		options[:object_options][:parameters]['uploadId'] = options[:resumable_id]
 		
 		#
 		# provide the signed request
@@ -183,7 +181,7 @@ class Condo::Strata::AmazonS3
 			#
 			options[:object_options][:headers]['Content-Md5'] = options[:file_id] if options[:file_id].present? && options[:object_options][:headers]['Content-Md5'].nil?
 			options[:object_options][:headers]['Content-Type'] = 'binary/octet-stream' if options[:object_options][:headers]['Content-Type'].nil?
-			options[:object_options][:parameters]['partNumber'] = options[:part] if options[:object_options][:parameters]['partNumber'].nil?
+			options[:object_options][:parameters]['partNumber'] = options[:part]
 			options[:object_options][:verb] = :put
 			request[:type] = :part_upload
 		end
@@ -192,9 +190,7 @@ class Condo::Strata::AmazonS3
 		#
 		# Set the upload 
 		#
-		if options[:object_options][:parameters]['uploadId'].nil?
-			options[:object_options][:parameters]['uploadId'] = options[:resumable_id]
-		end
+		options[:object_options][:parameters]['uploadId'] = options[:resumable_id]
 		
 		
 		#

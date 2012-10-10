@@ -56,7 +56,6 @@ module Condo
 				@upload[:file_size] = params[:file_size].to_i
 				@upload[:file_id] = params[:file_id]
 				@upload[:file_name] = (instance_eval &@@callbacks[:sanitize_filename])
-				@upload[:parameters] = (params[:parameters] || {}).merge((@upload[:parameters] || {}))	# Appliction takes priority
 				
 				upload = condo_backend.check_exists({
 					:user_id => resident,
@@ -76,7 +75,7 @@ module Condo
 					#
 					request = nil
 					if upload.resumable_id.present? && upload.resumable
-						upload.object_options[:parameters] =  ({} || @upload[:parameters]).merge(upload.object_options[:paramters]) if @upload[:object_options].present? && @upload[:object_options][:parameters].present?	# This seems more secure (May need to request the next set of parts)
+						upload.object_options[:parameters] =  {} || params[:parameters]	# May need to request the next set of parts
 						request = residence.get_parts({
 							:bucket_name => upload.bucket_name,
 							:object_key => upload.object_key,

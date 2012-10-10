@@ -1,0 +1,51 @@
+
+
+
+.supports-svg div.condo-upload > div.description td.icon {
+	background: url(<%= asset_path('condo/document.svg') %>) no-repeat center center;
+}
+
+.supports-svg div.condo-upload > div.stats td.controls.paused {
+	background: url(<%= asset_path('condo/play.svg') %>) no-repeat center center;
+}
+
+.supports-svg div.condo-upload > div.stats td.controls.uploading {
+	background: url(<%= asset_path('condo/pause.svg') %>) no-repeat center center;
+}
+
+.supports-svg div.condo-upload > div.stats td.abort {
+	background: url(<%= asset_path('condo/close.svg') %>) no-repeat center center;
+}
+
+
+
+
+
+.no-svg div.condo-upload > div.description td.icon {
+	background: url(<%= asset_path('condo/document.png') %>) no-repeat center center;
+}
+
+.no-svg div.condo-upload > div.stats td.controls.paused {
+	background: url(<%= asset_path('condo/play.png') %>) no-repeat center center;
+}
+
+.no-svg div.condo-upload > div.stats td.controls.uploading {
+	background: url(<%= asset_path('condo/pause.png') %>) no-repeat center center;
+}
+
+.no-svg div.condo-upload > div.stats td.abort {
+	background: url(<%= asset_path('condo/close.png') %>) no-repeat center center;
+}
+
+
+
+
+div.condo-upload td.image {
+	-webkit-background-size: contain !important;
+	-moz-background-size: contain !important;
+	-ms-background-size: contain !important;
+	-o-background-size: contain !important;
+	background-size: contain !important;
+}
+
+
