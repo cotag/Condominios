@@ -158,7 +158,9 @@
 							result.reject('upload failed');
 						},
 						complete: function(jqXHR, textStatus) {
-							$rootScope.$apply();					// This triggers the promise response
+							if(!$rootScope.$$phase) {
+								$rootScope.$apply();					// This triggers the promise response
+							}
 						}
 					};
 					
@@ -177,7 +179,14 @@
 						if(!!xhr.upload){
 							xhr.upload.addEventListener('progress', function(e) {
 								if (e.lengthComputable) {
-									progress_callback(e.loaded);			// Callback we'll need to wrap these in an apply to update the view
+									var phase = $rootScope.$$phase;
+									if(phase == '$apply' || phase == '$digest') {
+										progress_callback(e.loaded);
+									} else {
+										$rootScope.$apply(function(){
+											progress_callback(e.loaded);
+										});
+									}
 								}
 							}, false);
 						}

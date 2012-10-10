@@ -11,8 +11,9 @@
 * 	References:
 * 		* https://github.com/umdjs/umd
 * 		* https://github.com/addyosmani/jquery-plugin-patterns
-*		* http://ie.microsoft.com/testdrive/ieblog/2011/oct/PointerDraw.js.source.html
+*		* http://ie.microsoft.com/testdrive/ieblog/2011/oct/PointerDraw.js.source.html (detect click, touch etc on all platforms)
 *		* http://docs.angularjs.org/guide/directive
+*		* http://stackoverflow.com/questions/3758606/how-to-convert-byte-size-into-human-readable-format-in-java/3758880
 *
 **/
 

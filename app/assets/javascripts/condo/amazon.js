@@ -107,7 +107,10 @@
 						part_number: part_number
 					});
 					
-					$rootScope.$apply();		// Trigger the promise response
+					
+					if(!$rootScope.$$phase) {
+						$rootScope.$apply();					// This triggers the promise response if required
+					}
 				};
 				reader.onerror = fail;
 				reader.onabort = fail;
@@ -157,9 +160,7 @@
 				//
 				data['data'] = file;
 				api.process_request(data, function(progress) {
-					$rootScope.$apply(function() {
-						self.progress = progress;
-					});
+					self.progress = progress;
 				}).then(function(result) {
 					finalising = true;
 		        	$this.resume();				// Resume informs the application that the upload is complete
@@ -233,9 +234,7 @@
 				set_part = function(request, part_info) {
 					request['data'] = part_info.data;
 					api.process_request(request, function(progress) {
-						$rootScope.$apply(function() {
-							self.progress = (part_info.part_number - 1) * part_size + progress;
-						});
+						self.progress = (part_info.part_number - 1) * part_size + progress;
 					}).then(function(result) {
 						part_ids.push(part_info.data_id);	// We need to record the list of part IDs for completion
 			        		last_part = part_info.part_number;
@@ -349,7 +348,7 @@
 					});	// END BUILD_REQUEST
 					
 					
-				} else if (strategy.state == PAUSED) {				// We need to resume the upload if it is paused
+				} else if (this.state == PAUSED) {				// We need to resume the upload if it is paused
 					this.message = null;
 					strategy.resume();
 				}
@@ -368,7 +367,7 @@
 			};
 			
 			this.abort = function(reason) {
-				if(strategy != null && strategy.state < FINISHED) {	// Check the upload has not started
+				if(strategy != null && this.state < FINISHED) {	// Check the upload has not started
 					var old_state = this.state;
 					
 					this.state = ABORTED;
@@ -404,7 +403,7 @@
 					delete file_list.upload_id;
 				
 				if(strategy != null) {
-					if(strategy.state != STARTED) {
+					if(this.state != STARTED) {
 						this.pause();
 					} else {
 						this.abort();
