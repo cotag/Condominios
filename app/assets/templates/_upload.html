@@ -23,7 +23,7 @@
 									<div class="bar" ng-style="{ 'width':(upload.progress / upload.size * 100) + '%' }" ></div>
 								</div>
 							</td>
-							<td class="abort image"></td>
+							<td co-tap="remove(upload)" class="abort image"></td>
 						</tr>
 					</table>
 				</div>
@@ -32,7 +32,25 @@
 	</div>
 	<div class="condo-file-selection">
 		<form>
-			<input type="file" multiple />
+			<table>
+				<tr>
+					<td class="file-upload-btn">
+						<span>
+							<table>
+								<tr>
+									<td>
+										<label for="file-upload_{{$id}}">Select files</label>
+									</td>
+								</tr>
+							</table>
+							<input id="file-upload_{{$id}}" type="file" multiple />
+						</span>
+					</td>
+					<td>
+						<input class="autostart" data-ng-checked="autostart" id="autostart_{{$id}}" type="checkbox"> <label for="autostart_{{$id}}">Autostart</label>
+					</td>
+				</tr>
+			</table>
 		</form>
 	</div>
 </div>

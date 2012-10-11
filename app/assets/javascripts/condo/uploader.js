@@ -83,7 +83,13 @@
 					result = result.data;
 					self.upload_id = result.upload_id;	// Extract the upload id from the results
 					delete result.upload_id;
-					return result;
+					
+					if (!self.aborting)
+						return result;
+					else
+						return $q.reject('upload aborted');
+				}, function(reason) {
+					return $q.reject('upload error');
 				});
 			},
 			
@@ -93,6 +99,8 @@
 			//	Only used for resumable uploads
 			//
 			edit: function(part_number, part_id) {
+				var self = this;
+				
 				return $http({
 					method: 'GET',
 					url: this.endpoint + '/' + this.upload_id + '/edit',
@@ -101,7 +109,12 @@
 						file_id: part_id
 					}
 				}).then(function(result){
-					return result.data;
+					if (!self.aborting)
+						return result.data;
+					else
+						return $q.reject('upload aborted');
+				}, function(reason) {
+					return $q.reject('upload error');
 				});
 			},
 			
@@ -111,6 +124,8 @@
 			//	Otherwise the upload deemed complete
 			//
 			update: function(params) {	// optional parameters (resumable_id, file_id and part)
+				var self = this;
+				
 				params = params || {};
 					
 				return $http({
@@ -118,7 +133,12 @@
 					url: this.endpoint + '/' + this.upload_id,
 					params: params
 				}).then(function(result){
-					return result.data;
+					if (!self.aborting)
+						return result.data;
+					else
+						return $q.reject('upload aborted');
+				}, function(reason) {
+					return $q.reject('upload error');
 				});
 			},
 			
@@ -126,13 +146,12 @@
 			//
 			// Cancels a resumable upload
 			//	The actual destruction of the file is handled on the server side as we can't trust the client to do this
+			//	We don't care if this succeeds as the back-end will destroy the file eventually anyway.
 			//
 			destroy: function() {
 				return $http({
 					method: 'DELETE',
 					url: this.endpoint + '/' + this.upload_id
-				}).then(function(result){
-					return result.data;
 				});
 			},
 			
@@ -155,7 +174,10 @@
 						},
 						error: function(jqXHR, textStatus, errorThrown) {
 							self.xhr = null;
-							result.reject('upload failed');
+							if (!self.aborting)
+								result.reject('upload failed');
+							else
+								result.reject('upload aborted');
 						},
 						complete: function(jqXHR, textStatus) {
 							if(!$rootScope.$$phase) {
@@ -194,7 +216,7 @@
 					};
 				}
 				
-				self.xhr = $.ajax(params);
+				this.xhr = $.ajax(params);
 				
 				return result.promise;
 			},
@@ -207,7 +229,7 @@
 				if(!!this.xhr) {
 					this.xhr.abort();
 				} else {
-					this.aborting = true;		// TODO:: we need to reject requests if abort was set
+					this.aborting = true;		// we reject requests if abort was set
 				}
 			}
 		};
@@ -236,7 +258,22 @@
 						return residencies[result.data.residence].new_upload(api, the_file);	// return the instantiated provider
 						
 					} else {
-						return $q.reject('provider not found');
+						return $q.reject({
+							reason: 'storage provider not found'
+						});
+					}
+				}, function(reason) {
+					if(reason.status == 406) {
+						return $q.reject({
+							reason: 'file not accepted',
+							details: reason.data,
+							file: the_file
+						});
+					} else {
+						return $q.reject({
+							reason: 'server error',
+							file: the_file
+						});
 					}
 				});
 			}

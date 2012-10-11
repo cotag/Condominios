@@ -13,6 +13,16 @@
 **/
 
 
+
+
+
+
+
+/*
+ * 
+ * Upload wrapper styles
+ * 
+ */
 .ng-cloak {
 	display: none;
 }
@@ -35,33 +45,15 @@ div.condo-uploads-wrapper > div {
 }
 
 
-div.condo-uploads-wrapper > div.condo-uploads-container {
-	position: absolute;
-	top: 0;
-	left: 0;
-	right: 0;
-	bottom: 3em;
-	
-	overflow: auto;
-	overflow-x: hidden;
-}
 
 
-div.condo-uploads-wrapper > div.condo-file-selection {
-	position: absolute;
-	height: 3em;
-	left: 0;
-	right: 0;
-	bottom: 0;
-	
-	box-shadow: 0 0 8pt #888;
-}
 
-div.condo-uploads-wrapper > div.condo-file-selection > form {
-	padding-top: 0.5em;
-	padding-left: 2em;
-}
 
+/*
+ * 
+ * Drag and drop indicator styles
+ * 
+ */
 div.condo-uploads-wrapper > div.condo-drop-indicator {
 	opacity: 0;
 	
@@ -88,20 +80,170 @@ div.condo-uploads-wrapper.drag-hover > div.condo-drop-indicator {
 }
 
 div.condo-uploads-wrapper.drag-hover > div.condo-file-selection {
-	opacity: 0;
+	opacity: 0 !important;
 }
 
 div.condo-uploads-wrapper.drag-hover > div.condo-uploads-container {
+	opacity: 0 !important;
+}
+
+
+
+
+
+/*
+ * 
+ * Build the block that will contain the manual / global controls
+ * 
+ */
+div.condo-uploads-wrapper > div.condo-file-selection {
+	position: absolute;
+	height: 3em;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	
+	box-shadow: 0 0 8pt #888;
+}
+
+div.condo-uploads-wrapper > div.condo-file-selection > form {
+	width: 100%;
+	height: 100%;
+}
+
+div.condo-uploads-wrapper > div.condo-file-selection > form table {
+	width: 100%;
+	height: 100%;
+	
+	table-layout: fixed;
+}
+
+div.condo-uploads-wrapper > div.condo-file-selection table td.file-upload-btn {
+	width: 50%;
+	overflow: hidden;
+}
+
+div.condo-uploads-wrapper > div.condo-file-selection table td {
+	vertical-align:middle;
+	text-align: center;
+}
+
+
+div.condo-file-selection td.file-upload-btn > span {
+    /* Button styles from twitter bootstrap */
+
+	display: block;
+	position: relative;
+	
+	max-width: 10em;
+	font-size: 1.3em;
+	
+	margin: 0 auto;
+	
+	overflow:hidden;
+	
+	
+	
+	border-color: #C5C5C5;
+	border-color: rgba(0, 0, 0, 0.15) rgba(0, 0, 0, 0.15) rgba(0, 0, 0, 0.25);
+	
+	margin-bottom: 0;
+	color: #333;
+	text-align: center;
+	text-shadow: 0 1px 1px rgba(255, 255, 255, 0.75);
+	vertical-align: middle;
+	cursor: pointer;
+	
+	background-color: whiteSmoke;
+	background-image: -webkit-gradient(linear, 0 0, 0 100%, from(white), to(#E6E6E6));
+	background-image: -webkit-linear-gradient(top, white, #E6E6E6);
+	background-image: -o-linear-gradient(top, white, #E6E6E6);
+	background-image: linear-gradient(to bottom, white, #E6E6E6);
+	background-image: -moz-linear-gradient(top, white, #E6E6E6);
+	background-image: -ms-linear-gradient(top, white, #E6E6E6);
+	background-repeat: repeat-x;
+	
+	border: 1px solid #BBB;
+	border-color: rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.25);
+	border-color: #E6E6E6 #E6E6E6 #BFBFBF;
+	border-bottom-color: #A2A2A2;
+	
+	-webkit-border-radius: 4px;
+	-moz-border-radius: 4px;
+	-ms-border-radius: 4px;
+	-o-border-radius: 4px;
+	border-radius: 4px;
+	
+	-webkit-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 1px 2px rgba(0, 0, 0, 0.05);
+	-moz-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 1px 2px rgba(0, 0, 0, 0.05);
+	-ms-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 1px 2px rgba(0, 0, 0, 0.05);
+	-o-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 1px 2px rgba(0, 0, 0, 0.05);
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+
+div.condo-file-selection td.file-upload-btn > span:hover {
+	color: #333;
+	text-decoration: none;
+	background-color: #E6E6E6;
+	background-position: 0 -15px;
+	
+	-webkit-transition: background-position 0.1s linear;
+	-moz-transition: background-position 0.1s linear;
+	-ms-transition: background-position 0.1s linear;
+	-o-transition: background-position 0.1s linear;
+	transition: background-position 0.1s linear;
+}
+
+div.condo-file-selection td.file-upload-btn > span:active {
+	background-color: #e6e6e6;
+	background-color: #d9d9d9 \9;
+	background-image: none;
+	outline: 0;
+	-webkit-box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.15), 0 1px 2px rgba(0, 0, 0, 0.05);
+	-moz-box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.15), 0 1px 2px rgba(0, 0, 0, 0.05);
+	-ms-box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.15), 0 1px 2px rgba(0, 0, 0, 0.05);
+	-o-box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.15), 0 1px 2px rgba(0, 0, 0, 0.05);
+	box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.15), 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+
+div.condo-file-selection td.file-upload-btn > span > input {
+	position: absolute;
+	top: 0;
+	left: 0;
+	margin: 0;
+	font-size: 3em;
 	opacity: 0;
 }
 
 
+
+/*
+ * 
+ * Build the block that will contain the uploads
+ * 
+ */
+
+div.condo-uploads-wrapper > div.condo-uploads-container {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 3em;
+	
+	overflow: auto;
+	overflow-x: hidden;
+}
 
 
 div.condo-uploads {
 	width: 100%;
 	text-align: center;
 }
+
+
+
 
 
 /*

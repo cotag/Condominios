@@ -28,6 +28,17 @@
 }(function ($, uploads, undefined) {
 	'use strict';
 	
+	
+	var safeApply = function(scope, fn) {
+		var phase = scope.$root.$$phase;
+		if(phase == '$apply' || phase == '$digest') {
+			fn();
+		} else {
+			scope.$apply(fn);
+		}
+	};
+	
+	
 	//
 	// Allow for both mobile and desktop events or both
 	//	Overkill?
@@ -50,23 +61,15 @@
 		};
 		
 		return function(scope, element, attrs) {
-			var useSetReleaseCapture = false,
-				tracker = {},
-				
-			safeApply = function(fn) {
-				var phase = scope.$root.$$phase;
-				if(phase == '$apply' || phase == '$digest') {
-					fn();
-				} else {
-					scope.$apply(fn);
-				}
-			},
+			var tracker = {},
 			
 			// common event handler for the mouse/pointer/touch models and their down/start, move, up/end, and cancel events
 			DoEvent = function(event) {
-				 
-				// optimize rejecting mouse moves when mouse is up
-				if (event.originalEvent.type == "mousemove" && NumberOfKeys(tracker) == 0)
+				
+				//
+				// Optimise rejecting clicks (iOS) that are most likely triggered by a touch
+				//
+				if (event.originalEvent.type == "click" && NumberOfKeys(tracker) == 0)
 					return;
 				
 				var theEvtObj = event.originalEvent,
@@ -90,31 +93,21 @@
 						//
 						if (this.msSetPointerCapture)
 							this.msSetPointerCapture(pointerId);
-						else if (theEvtObj.type == "mousedown" && NumberOfKeys(tracker) == 1) {
-							if (useSetReleaseCapture)
-								this.setCapture(true);
-							else {
-								$(document).on('mousemove mouseup', DoEvent);
-							}
-						}
 						
 						
 					} else if (theEvtObj.type.match(/move$/i)) {
-						// clause handles mousemove, MSPointerMove, and touchmove
+						// clause handles MSPointerMove and touchmove
 						
-						//
-						// Mouse move means we are not tapping
-						//
 						if(tracker[pointerId])
 							tracker[pointerId].execute = false;
 						
 						
-					} else if (tracker[pointerId] && theEvtObj.type.match(/(up|end|cancel)$/i)) {
-						// clause handles up/end/cancel
+					} else if (tracker[pointerId] && theEvtObj.type.match(/(up|end|cancel|click)$/i)) {
+						// clause handles up/end/cancel/click
 						var target = tracker[pointerId].element;
 						 
 						if (!theEvtObj.type.match(/cancel$/i) && tracker[pointerId].execute === true)
-							safeApply(attrs['coTap']);	// Apply the click, touch, point event
+							safeApply(scope, attrs['coTap']);	// Apply the click, touch, point event
 						
 						delete tracker[pointerId];
 						
@@ -125,13 +118,6 @@
 						//
 						if (target.msReleasePointerCapture)
 							target.msReleasePointerCapture(pointerId);
-						else if (theEvtObj.type == "mouseup" && NumberOfKeys(tracker) == 0) {
-							if (useSetReleaseCapture)
-								target.releaseCapture();
-							else {
-								$(document).off('mousemove mouseup', DoEvent);
-							}
-						}
 					}
 				}
 			};
@@ -141,12 +127,7 @@
 				element.on('MSPointerDown.condo MSPointerMove.condo MSPointerUp.condo MSPointerCancel.condo', DoEvent);
 			} else {
 				// iOS touch model & mouse model
-				element.on('touchstart.condo touchmove.condo touchend.condo touchcancel.condo mousedown.condo mousemove.condo mouseup.condo', DoEvent);
-				
-				// mouse model with capture
-				// rejecting gecko because, unlike ie, firefox does not send events to target when the mouse is outside target
-				if (element[0].setCapture && !window.navigator.userAgent.match(/\bGecko\b/))
-					useSetReleaseCapture = true;
+				element.on('touchstart.condo touchmove.condo touchend.condo touchcancel.condo mousedown.condo click.condo', DoEvent);
 			}
 			
 			
@@ -154,7 +135,6 @@
 			// Clean up any event handlers
 			//
 			scope.$on('$destroy', function() {
-				$(document).off('mousemove mouseup', DoEvent);
 				element.off('.condo');
 			});
 			
@@ -165,7 +145,7 @@
 	//
 	// create a directive for attaching the input events
 	//
-	uploads.directive('coUploads', function() {
+	uploads.directive('coUploads', ['Condo.Broadcast', function(broadcast) {
 		return function(scope, element, attrs) {				
 			var options = {
 				delegate: attrs['coDelegate'] || element,
@@ -206,7 +186,9 @@
 				event.preventDefault();
 				event.stopPropagation();
 				
-				scope.add(event.originalEvent.dataTransfer.files);
+				safeApply(scope, function() {
+					scope.add(event.originalEvent.dataTransfer.files);
+				});
 			}).on('dragover.condo', options.drop_targets, function(event) {
 				$(this).addClass(options.hover_class);
 				
@@ -222,10 +204,11 @@
 			// Detect manual file uploads
 			//
 			on('change.condo', ':file', function(event) {
-				
-				scope.add($(this)[0].files);
-				$(this).parent()[0].reset();
-				
+				var self = $(this);
+				safeApply(scope, function() {
+					scope.add(self[0].files);
+					self.parents('form')[0].reset();
+				});
 			});
 			
 			
@@ -239,6 +222,11 @@
 			});
 			
 			
+			scope.$on('coFileAddFailed', function() {
+				alert('Failed to add file: ' + broadcast.message.reason);
+			});
+			
+			
 			scope.humanReadableByteCount = function(bytes, si) {
 				var unit = si ? 1000.0 : 1024.0;
 				if (bytes < unit) return bytes + (si ? ' iB' : ' B');
@@ -247,7 +235,7 @@
 				return (bytes / Math.pow(unit, exp)).toFixed(1) + ' ' + pre;
 			}
 		}
-	});
+	}]);
 	
 	
 	//

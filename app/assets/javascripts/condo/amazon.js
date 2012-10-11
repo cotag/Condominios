@@ -32,13 +32,12 @@
 	//	So we can have different views for the same controller
 	//
 	uploads.factory('Condo.AmazonS3', ['$rootScope', '$q', function($rootScope, $q) {
-		var current_uploads = {},
-			PENDING = -1,
-			STARTED = 0,
+		var PENDING = 0,
+			STARTED = 1,
 			PAUSED = 2,
 			UPLOADING = 3,
-			COMPLETED = 3,
-			ABORTED = 4,
+			COMPLETED = 4,
+			ABORTED = 5,
 		
 		
 		
@@ -61,8 +60,8 @@
 			var self = this,
 				strategy = null,
 				part_size = 5242880,			// Multi-part uploads should be bigger then this
-				defaultError = function() {
-					self.pause('issue with upload');
+				defaultError = function(reason) {
+					self.pause(reason);
 				},
 
 			restart = function() {
@@ -166,7 +165,7 @@
 		        	$this.resume();				// Resume informs the application that the upload is complete
 				}, function(reason) {
 					self.progress = 0;
-					defaultError();
+					defaultError(reason);
 				});
 			}, // END DIRECT
 
@@ -241,7 +240,7 @@
 			        		next_part(last_part + 1);
 					}, function(reason) {
 						self.progress = (part_info.part_number - 1) * part_size;
-						defaultError();
+						defaultError(reason);
 					});
 				};
 					
@@ -289,12 +288,12 @@
 							}).then(function(data) {
 								set_part(data, first_chunk);		// Parts start at 1
 							}, function(reason) {
-								defaultError();
+								defaultError(reason);
 								restart();				// Easier to start from the beginning
 							});
 		        		}
 				}, function(reason) {
-					defaultError();
+					defaultError(reason);
 					restart();		// We need to get a new request signature
 				});
 			}; // END CHUNKED
@@ -302,7 +301,7 @@
 			
 			this.state = PENDING;
 			this.progress = 0;
-			this.message = null;
+			this.message = '';
 			this.name = file.name;
 			this.size = file.size;
 			
@@ -367,7 +366,7 @@
 			};
 			
 			this.abort = function(reason) {
-				if(strategy != null && this.state < FINISHED) {	// Check the upload has not started
+				if(strategy != null && this.state < COMPLETED) {	// Check the upload has not finished
 					var old_state = this.state;
 					
 					this.state = ABORTED;
@@ -386,28 +385,10 @@
 					//	we won't worry if this fails as it should be automatically cleaned up by the back end
 					//
 					if(old_state > STARTED) {
-						try {
-							api.destroy();
-						} catch(e) {}
+						api.destroy();
 					}
-				}
-			};
-			
-			
-			//
-			// TODO:: We need to remove from current_uploads list
-			//	On Abort or Finish (should not be a public interface)
-			//
-			this.remove = function() {
-				if(!!upload_id)
-					delete file_list.upload_id;
-				
-				if(strategy != null) {
-					if(this.state != STARTED) {
-						this.pause();
-					} else {
-						this.abort();
-					}
+					
+					this.message = reason;
 				}
 			};
 		}; // END AMAZON
