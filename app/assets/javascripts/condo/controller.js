@@ -115,6 +115,10 @@
 		};
 		
 		
+		//
+		// TODO:: watch autostart and trigger a check when it is changed http://docs.angularjs.org/api/ng.$rootScope.Scope#$watch
+		//
+		
 		$scope.check_autostart = function() {
 			//
 			// Check if any uploads have been started already
