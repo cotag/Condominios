@@ -299,11 +299,15 @@
 			}; // END CHUNKED
 			
 			
+			//
+			// Variables required for all drivers
+			//
 			this.state = PENDING;
 			this.progress = 0;
-			this.message = '';
+			this.message = 'upload pending...';
 			this.name = file.name;
 			this.size = file.size;
+			
 			
 			//
 			// Support file slicing

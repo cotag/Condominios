@@ -68,6 +68,7 @@
 			create: function(options) {		// file_id: 123, options: {} 
 				var self = this;
 				options = options || {};
+				this.aborting = false;
 				
 				if(!!options['file_id'])
 					this.params['file_id'] = options['file_id'];
@@ -87,7 +88,7 @@
 					if (!self.aborting)
 						return result;
 					else
-						return $q.reject('upload aborted');
+						return $q.reject(undefined);
 				}, function(reason) {
 					return $q.reject('upload error');
 				});
@@ -100,6 +101,7 @@
 			//
 			edit: function(part_number, part_id) {
 				var self = this;
+				this.aborting = false;
 				
 				return $http({
 					method: 'GET',
@@ -112,7 +114,7 @@
 					if (!self.aborting)
 						return result.data;
 					else
-						return $q.reject('upload aborted');
+						return $q.reject(undefined);
 				}, function(reason) {
 					return $q.reject('upload error');
 				});
@@ -126,6 +128,7 @@
 			update: function(params) {	// optional parameters (resumable_id, file_id and part)
 				var self = this;
 				
+				this.aborting = false;
 				params = params || {};
 					
 				return $http({
@@ -136,9 +139,12 @@
 					if (!self.aborting)
 						return result.data;
 					else
-						return $q.reject('upload aborted');
+						return $q.reject(undefined);
 				}, function(reason) {
-					return $q.reject('upload error');
+					if (reason.status == 401 && params.resumable_id == undefined) {
+						return '';		// User may have paused upload as put was being sent. We should let this through just to update the UI
+					} else
+						return $q.reject('upload error');
 				});
 			},
 			
@@ -175,9 +181,9 @@
 						error: function(jqXHR, textStatus, errorThrown) {
 							self.xhr = null;
 							if (!self.aborting)
-								result.reject('upload failed');
+								result.reject('upload error');
 							else
-								result.reject('upload aborted');
+								result.reject(undefined);
 						},
 						complete: function(jqXHR, textStatus) {
 							if(!$rootScope.$$phase) {
@@ -185,6 +191,8 @@
 							}
 						}
 					};
+					
+				this.aborting = false;
 					
 				if (!!self.xhr) {
 					result.reject('request in progress');	// This is awesome
@@ -226,10 +234,9 @@
 			// Will trigger the error call-back of the xhr object
 			//
 			abort: function() {
+				this.aborting = true;
 				if(!!this.xhr) {
 					this.xhr.abort();
-				} else {
-					this.aborting = true;		// we reject requests if abort was set
 				}
 			}
 		};

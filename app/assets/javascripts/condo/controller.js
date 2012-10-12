@@ -12,6 +12,7 @@
 * 		* https://github.com/umdjs/umd
 * 		* https://github.com/addyosmani/jquery-plugin-patterns
 *		* http://ericterpstra.com/2012/09/angular-cats-part-3-communicating-with-broadcast/
+*		* http://docs.angularjs.org/api/ng.$rootScope.Scope#$watch
 *
 **/
 
@@ -90,20 +91,22 @@
 		};
 		
 		
+		$scope.abort = function(upload) {
+			upload.abort();
+			$scope.check_autostart();
+		};
+		
+		
 		$scope.remove = function(upload) {
 			//
-			// Aborts the upload and removes it from the list
+			// Splice(upload, 1) was unreliable. This is better
 			//
-			upload.abort();
-			
 			for (var i = 0, length = $scope.uploads.length; i < length; i += 1) {
 				if($scope.uploads[i] === upload) {
 					$scope.uploads.splice(i, 1);
 					break;
 				}
 			}
-			
-			$scope.check_autostart();
 		};
 		
 		
@@ -116,8 +119,13 @@
 		
 		
 		//
-		// TODO:: watch autostart and trigger a check when it is changed http://docs.angularjs.org/api/ng.$rootScope.Scope#$watch
+		// Watch autostart and trigger a check when it is changed
 		//
+		$scope.$watch('autostart', function(newValue, oldValue) {
+			if (newValue === true)
+				$scope.check_autostart();
+		});
+		
 		
 		$scope.check_autostart = function() {
 			//
@@ -146,11 +154,6 @@
 				}
 			}
 		};
-		
-		
-		/*$scope.$watch('$location.path()', function(path) {
-			
-		});*/
 		
 	}]);
 	

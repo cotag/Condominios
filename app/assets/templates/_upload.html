@@ -16,14 +16,15 @@
 				<div class="stats">
 					<table>
 						<tr>
-							<td class="size" ng-init="x = humanReadableByteCount(upload.size, false)">{{x}}</td>
-							<td class="controls image paused" co-tap="playpause(upload)"></td>
+							<td class="size">{{size}}</td>
+							<td class="controls image" ng-class="{'paused':paused, 'uploading':!paused}" co-tap="playpause(upload)"></td>
 							<td class="progressbar">
-								<div class="progress" role="progressbar" aria-live="polite" aria-valuenow="30" aria-valuemin="0" aria-valuemax="100">
-									<div class="bar" ng-style="{ 'width':(upload.progress / upload.size * 100) + '%' }" ></div>
+								<div class="progress hide" role="progressbar" aria-live="polite" aria-valuenow="{{progress}}" aria-valuemin="0" aria-valuemax="100">
+									<div class="bar" ng-style="{ 'width': progress + '%' }" ></div>
 								</div>
+								<div class="message">{{upload.message}}</div>
 							</td>
-							<td co-tap="remove(upload)" class="abort image"></td>
+							<td co-tap="animate_remove(upload, 900)" class="abort image"></td>
 						</tr>
 					</table>
 				</div>

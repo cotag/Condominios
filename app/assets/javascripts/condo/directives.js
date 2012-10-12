@@ -243,7 +243,65 @@
 	//	Triggers the pause, resume, abort functions
 	//
 	uploads.directive('coUpload', function() {
+		var PENDING = 0,
+			STARTED = 1,
+			PAUSED = 2,
+			UPLOADING = 3,
+			COMPLETED = 4,
+			ABORTED = 5;
+		
 		return function(scope, element, attrs) {
+			
+			scope.size = scope.humanReadableByteCount(scope.upload.size, false);
+			scope.progress = 0;
+			scope.paused = true;
+			
+			scope.$watch('upload.state', function(newValue, oldValue) {
+				switch(newValue) {
+					case STARTED:
+						scope.paused = false;
+						scope.upload.message = 'upload starting...';
+						break;
+						
+					case UPLOADING:
+						element.find('td.progressbar > div.message').addClass('hide');
+						element.find('td.progressbar > div.progress').removeClass('hide');
+						
+						scope.paused = false;
+						break;
+						
+					case COMPLETED:
+						scope.upload.message = 'upload complete';
+						element.find('td.controls').css('display', 'none');
+						
+						scope.check_autostart();
+						
+					case PAUSED:	// Fall through desired
+						scope.paused = true;
+						if (scope.upload.message === undefined)
+							break;
+						
+						element.find('td.progressbar > div.progress').addClass('hide');
+						element.find('td.progressbar > div.message').removeClass('hide');
+						
+						// No need for break
+				}
+			});
+			
+			scope.$watch('upload.progress', function(newValue, oldValue) {
+				scope.progress = newValue / scope.upload.size * 100;
+			});
+						
+			
+			scope.animate_remove = function() {
+				scope.abort(scope.upload);
+				
+				element.fadeOut(800, function() {
+					safeApply(scope, function() {
+						scope.remove(scope.upload);
+					});
+				});
+			};
 			
 		};
 	});
