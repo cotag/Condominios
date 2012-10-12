@@ -33,12 +33,13 @@
 	//
 	// Implements the Condo API
 	//
-	uploads.factory('Condo.Api', ['$http', '$rootScope', '$q', 'Condo.AmazonS3', function($http, $rootScope, $q, AmazonS3Condo) {
+	uploads.factory('Condo.Api', ['$http', '$rootScope', '$q', 'Condo.AmazonS3', 'Condo.RackspaceCloudFiles', function($http, $rootScope, $q, AmazonS3Condo, RackspaceFilesCondo) {
 		
 		
 		var token = $('meta[name="csrf-token"]').attr('content'),
 			residencies = {
-				AmazonS3: AmazonS3Condo
+				AmazonS3: AmazonS3Condo,
+				RackspaceCloudFiles: RackspaceFilesCondo
 			},
 
 		
@@ -83,7 +84,6 @@
 				}).then(function(result){
 					result = result.data;
 					self.upload_id = result.upload_id;	// Extract the upload id from the results
-					delete result.upload_id;
 					
 					if (!self.aborting)
 						return result;

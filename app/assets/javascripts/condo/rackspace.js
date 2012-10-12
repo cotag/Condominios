@@ -1,5 +1,5 @@
 /**
-*	CoTag Condo Amazon S3 Strategy
+*	CoTag Condo Rackspace Cloud Files Strategy
 *	Direct to cloud resumable uploads for Amazon S3
 *	
 *   Copyright (c) 2012 CoTag Media.
@@ -18,12 +18,12 @@
 (function (factory) {
 	if (typeof define === 'function' && define.amd) {
 		// AMD
-		define(['jquery', 'spark-md5', 'base64', 'condo_uploader'], factory);
+		define(['jquery', 'spark-md5', 'condo_uploader'], factory);
 	} else {
 		// Browser globals
-		factory(jQuery, window.SparkMD5, window.base64, window.CondoUploader);
+		factory(jQuery, window.SparkMD5, window.CondoUploader);
 	}
-}(function ($, MD5, base64, uploads, undefined) {
+}(function ($, MD5, uploads, undefined) {
 	'use strict';
 	
 	//
@@ -31,7 +31,7 @@
 	//	We should split all these into different files too (controller and factories separate from directives and views)
 	//	So we can have different views for the same controller
 	//
-	uploads.factory('Condo.AmazonS3', ['$rootScope', '$q', function($rootScope, $q) {
+	uploads.factory('Condo.RackspaceCloudFiles', ['$rootScope', '$q', function($rootScope, $q) {
 		var PENDING = 0,
 			STARTED = 1,
 			PAUSED = 2,
@@ -40,26 +40,10 @@
 			ABORTED = 5,
 		
 		
-		
-		hexToBin = function(input) {
-			var result = "";
-			
-			if ((input.length % 2) > 0) {
-				input = '0' + input;
-			}
-			
-			for (var i = 0, length = input.length; i < length; i += 2) {
-				result += String.fromCharCode(parseInt(input.slice(i, i + 2), 16));
-			}
-			
-			return result;
-		},
-		
-		
-		Amazon = function (api, file) {
+		Rackspace = function (api, file) {
 			var self = this,
 				strategy = null,
-				part_size = 5242880,			// Multi-part uploads should be bigger then this
+				part_size = 2097152,			// Multi-part uploads should be bigger then this
 				defaultError = function(reason) {
 					self.pause(reason);
 				},
@@ -121,7 +105,7 @@
 			//
 			// Direct file upload strategy
 			//
-			AmazonDirect = function(data) {
+			RackspaceDirect = function(data) {
 				//
 				// resume
 				// abort
@@ -146,7 +130,7 @@
 				
 				this.pause = function() {
 					api.abort();
-						
+					
 					if(!finalising) {
 						restart();		// Should occur before events triggered
 						self.progress = 0;
@@ -173,25 +157,13 @@
 			//
 			// Chunked upload strategy--------------------------------------------------
 			//
-			AmazonChunked = function (data, first_chunk) {
+			RackspaceChunked = function (data, first_chunk) {
 				//
 				// resume
 				// abort
 				// pause
 				//
-				var part_ids = [],
-					last_part = 0,
-				
-				
-				generatePartManifest = function() {
-					var list = '<CompleteMultipartUpload>';
-					
-					for (var i = 0, length = part_ids.length; i < length; i += 1) {
-						list += '<Part><PartNumber>' + (i + 1) + '</PartNumber><ETag>"' + part_ids[i] + '"</ETag></Part>';
-					}
-					list += '</CompleteMultipartUpload>';
-					return list;
-				},
+				var last_part = 0,
 				
 				//
 				// Get the next part signature
@@ -205,10 +177,13 @@
 							if (self.state != UPLOADING)
 								return;						// upload was paused or aborted as we were reading the file
 							
-							api.edit(part_number, base64.encode(hexToBin(result.data_id))).
-								then(function(data) {
-									set_part(data, result);
-								}, defaultError);
+							api.update({
+								resumable_id: part_number,
+								file_id: result.data_id,
+								part: part_number
+							}).then(function(data) {
+								set_part(data, result);
+							}, defaultError);
 						
 						}, function(reason){
 							self.pause(reason);
@@ -220,7 +195,6 @@
 						//
 						api.edit('finish').
 							then(function(request) {
-								request['data'] = generatePartManifest();
 								api.process_request(request).then(completeUpload, defaultError);
 							}, defaultError);
 					}
@@ -235,9 +209,8 @@
 					api.process_request(request, function(progress) {
 						self.progress = (part_info.part_number - 1) * part_size + progress;
 					}).then(function(result) {
-						part_ids.push(part_info.data_id);	// We need to record the list of part IDs for completion
-			        		last_part = part_info.part_number;
-			        		next_part(last_part + 1);
+			        	last_part = part_info.part_number;
+			        	next_part(last_part + 1);
 					}, function(reason) {
 						self.progress = (part_info.part_number - 1) * part_size;
 						defaultError(reason);
@@ -258,44 +231,13 @@
 				
 				
 				//
-				// We need to check if we are grabbing a parts list or creating an upload
+				// We need to check if we are resuming or starting an upload
 				//
-				api.process_request(data).then(function(response) {
-					if(data.type == 'parts') {	// was the original request for a list of parts
-		        			//
-		        			// NextPartNumberMarker == the final part in the current request
-		        			//	TODO:: if IsTruncated is set then we need to keep getting parts
-		        			//
-		        			response = $(response);
-		        			var next = parseInt(response.find('NextPartNumberMarker').eq(0).text()),
-		        				etags = response.find('ETag');
-		        			
-		        			etags.each(function(index) {
-		        				part_ids.push($(this).text().replace(/"{1}/gi,''));	// Removes " from strings
-		        			});
-		        			
-		        			last_part = next;		// So we can resume
-		        			next_part(next + 1);	// As NextPartNumberMarker is just the last part uploaded
-		        		} else {
-		        			//
-		        			// We've created the upload - we need to update the application with the upload id.
-		        			//	This will also return the request for uploading the first part which we've already prepared
-		        			//
-							api.update({
-								resumable_id: $(response).find('UploadId').eq(0).text(),
-								file_id: base64.encode(hexToBin(first_chunk.data_id)),
-								part: 1
-							}).then(function(data) {
-								set_part(data, first_chunk);		// Parts start at 1
-							}, function(reason) {
-								defaultError(reason);
-								restart();				// Easier to start from the beginning
-							});
-		        		}
-				}, function(reason) {
-					defaultError(reason);
-					restart();		// We need to get a new request signature
-				});
+				if(data.type == 'parts') {
+					next_part(data.current_part);
+				} else {
+					set_part(data, first_chunk);
+				}
 			}; // END CHUNKED
 			
 			
@@ -318,16 +260,6 @@
 			
 			this.start = function(){
 				if(strategy == null) {	// We need to create the upload
-					//
-					// Update part size if required
-					//
-					if((part_size * 9999) < file.size)	{
-						part_size = file.size / 9999;
-						if(part_size > (5 * 1024 * 1024 * 1024)) {		// 5GB limit on part sizes
-							this.abort('file too big');
-							return;
-						}
-					}
 					
 					this.message = null;
 					this.state = STARTED;
@@ -337,12 +269,12 @@
 						if (self.state != STARTED)
 							return;						// upload was paused or aborted as we were reading the file
 						
-						api.create({file_id: base64.encode(hexToBin(result.data_id))}).
+						api.create({file_id: result.data_id}).
 							then(function(data) {
 								if(data.type == 'direct_upload') {
-									strategy = new AmazonDirect(data);
+									strategy = new RackspaceDirect(data);
 								} else {
-									strategy = new AmazonChunked(data, result);
+									strategy = new RackspaceChunked(data, result);
 								}
 							}, defaultError);
 						
@@ -400,7 +332,7 @@
 		
 		return {
 			new_upload: function(api, file) {
-				return new Amazon(api, file);
+				return new Rackspace(api, file);
 			}
 		};
 		

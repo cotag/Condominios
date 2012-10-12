@@ -260,30 +260,29 @@
 				switch(newValue) {
 					case STARTED:
 						scope.paused = false;
-						scope.upload.message = 'upload starting...';
+						scope.upload.message = 'starting...';
 						break;
 						
 					case UPLOADING:
-						element.find('td.progressbar > div.message').addClass('hide');
-						element.find('td.progressbar > div.progress').removeClass('hide');
-						
+						element.find('div.bar').addClass('animate');
+						scope.upload.message = undefined;
 						scope.paused = false;
 						break;
 						
 					case COMPLETED:
-						scope.upload.message = 'upload complete';
-						element.find('td.controls').css('display', 'none');
+						scope.upload.message = 'complete';
+						element.find('td.controls').replaceWith( '<td class="blank" />' );
+						element.find('div.bar').removeClass('animate');
 						
 						scope.check_autostart();
+						break;
 						
-					case PAUSED:	// Fall through desired
-						scope.paused = true;
+					case PAUSED:
+						element.find('div.bar').removeClass('animate');
 						if (scope.upload.message === undefined)
-							break;
-						
-						element.find('td.progressbar > div.progress').addClass('hide');
-						element.find('td.progressbar > div.message').removeClass('hide');
-						
+							scope.upload.message = 'paused';
+							
+						scope.paused = true;
 						// No need for break
 				}
 			});

@@ -202,7 +202,8 @@ class Condo::Strata::AmazonS3
 	
 	
 	def fog_connection
-		Fog::Storage.new(@options[:fog])
+		@fog = @fog || Fog::Storage.new(@options[:fog])
+		return @fog
 	end
 	
 	
@@ -267,7 +268,6 @@ class Condo::Strata::AmazonS3
 			url += value.empty? ? "#{key}&" : "#{key}=#{value}&"
 		end
 		url.chomp!('&') if options[:object_options][:parameters].present?
-		
 		
 		#
 		# Build a request signature

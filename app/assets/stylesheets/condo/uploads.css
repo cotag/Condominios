@@ -332,13 +332,10 @@ div.condo-upload > div.description td.name {
 	text-overflow: ellipsis;
 }
 
-div.condo-upload > div.stats td.controls {
+div.condo-upload > div.stats td.controls, div.condo-upload > div.stats td.abort, div.condo-upload > div.stats td.blank {
 	width: 1.8em;
 }
 
-div.condo-upload > div.stats td.abort {
-	width: 1.8em;
-}
 
 
 div.condo-upload > div.stats td.size {
@@ -361,18 +358,38 @@ div.condo-upload > div.stats td.progressbar > div.hide {
 
 
 div.condo-upload > div.stats td.progressbar > div.progress {
-	height: 0.7em;
+	position: relative;
+	
+	font-size: 0.8em;
+	line-height: 1em;
+	
+	height: 1.3em;				/* Same as background size below */
 	border: 1pt solid #999;
 	padding: 1px;
 	background: white;
 }
 
+
+div.condo-upload > div.stats td.progressbar > div.progress > div.message {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	margin-top: 0.2em;
+	text-shadow: 1pt 1pt #AAA;
+}
+
+
 div.condo-upload > div.stats td.progressbar > div.progress > div.bar {
 	height: 100%;
 	
 	background-repeat: repeat-x;
-	background-size: 1.2em 0.7em;
+	background-size: 2.3em 1.3em;
 	background-color: #4A97DF;
+}
+
+div.condo-upload > div.stats td.progressbar > div.progress > div.bar.animate {
 	background-image: -webkit-linear-gradient(315deg,transparent,transparent 33%,rgba(0, 0, 0, 0.12) 33%,rgba(0, 0, 0, 0.12) 66%,transparent 66%,transparent);
 	background-image: -moz-linear-gradient(315deg,transparent,transparent 33%,rgba(0, 0, 0, 0.12) 33%,rgba(0, 0, 0, 0.12) 66%,transparent 66%,transparent);
 	background-image: -ms-linear-gradient(315deg,transparent,transparent 33%,rgba(0, 0, 0, 0.12) 33%,rgba(0, 0, 0, 0.12) 66%,transparent 66%,transparent);
@@ -414,7 +431,7 @@ div.condo-upload > div.stats td.progressbar > div.progress > div.bar {
 		background-position: 0 0;
 	}
 	100% {
-		background-position: 1.2em 0;
+		background-position: 2.3em 0;
 	}
 }
 
@@ -423,7 +440,7 @@ div.condo-upload > div.stats td.progressbar > div.progress > div.bar {
 		background-position: 0 0;
 	}
 	100% {
-		background-position: 1.2em 0;
+		background-position: 2.3em 0;
 	}
 }
 
@@ -432,7 +449,7 @@ div.condo-upload > div.stats td.progressbar > div.progress > div.bar {
 		background-position: 0 0;
 	}
 	100% {
-		background-position: 1.2em 0;
+		background-position: 2.3em 0;
 	}
 }
 
@@ -441,7 +458,7 @@ div.condo-upload > div.stats td.progressbar > div.progress > div.bar {
 		background-position: 0 0;
 	}
 	100% {
-		background-position: 1.2em 0;
+		background-position: 2.3em 0;
 	}
 }
 
@@ -450,151 +467,9 @@ div.condo-upload > div.stats td.progressbar > div.progress > div.bar {
 		background-position: 0 0;
 	}
 	100% {
-		background-position: 1.2em 0;
+		background-position: 2.3em 0;
 	}
 }
 
 
-
-
-
-
-div.condo-upload div.loader {
-	width: 60pt;
-	margin: 0 auto;
-}
-
-div.condo-upload div.loader {
-	background-color:#fb4b4b;
-	
-	float:left;
-	height:14pt;
-	margin-left:6pt;
-	width:14pt;
-	
-	-webkit-animation-name:bounce;
-	-webkit-animation-duration:1.35s;
-	-webkit-animation-iteration-count:infinite;
-	-webkit-animation-direction:linear;
-	-webkit-border-radius:7pt;
-	
-	-moz-animation-name:bounce;
-	-moz-animation-duration:1.35s;
-	-moz-animation-iteration-count:infinite;
-	-moz-animation-direction:linear;
-	-moz-border-radius:7pt;
-	
-	-ms-animation-name:bounce;
-	-ms-animation-duration:1.35s;
-	-ms-animation-iteration-count:infinite;
-	-ms-animation-direction:linear;
-	-ms-border-radius:7pt;
-	
-	-o-animation-name:bounce;
-	-o-animation-duration:1.35s;
-	-o-animation-iteration-count:infinite;
-	-o-animation-direction:linear;
-	-o-border-radius:7pt;
-	
-	animation-name:bounce;
-	animation-duration:1.35s;
-	animation-iteration-count:infinite;
-	animation-direction:linear;
-	border-radius:7pt;
-	
-	opacity:0.3
-}
-
-div.condo-upload div.loader-block1 {
-	-webkit-animation-delay:0.3s;
-	-moz-animation-delay:0.3s;
-	-o-animation-delay:0.3s;
-	-ms-animation-delay:0.3s;
-	animation-delay:0.3s;
-}
-
-div.condo-upload div.loader-block2 {
-	-webkit-animation-delay:0.6s;
-	-moz-animation-delay:0.6s;
-	-o-animation-delay:0.6s;
-	-ms-animation-delay:0.6s;
-	animation-delay:0.6s;
-}
-
-div.condo-upload div.loader-block3 {
-	-webkit-animation-delay:0.9s;
-	-moz-animation-delay:0.9s;
-	-o-animation-delay:0.9s;
-	-ms-animation-delay:0.9s;
-	animation-delay:0.9s;
-}
-
-
-
-@-webkit-keyframes bounce {
-	0% {
-		opacity:0.3
-	}
-	50% {
-		opacity:1;
-		background-color:#bd0505
-	}
-	100% {
-		opacity:0.3
-	}
-}
-
-
-@-moz-keyframes bounce {
-	0% {
-		opacity:0.3
-	}
-	50% {
-		opacity:1;
-		background-color:#bd0505
-	}
-	100% {
-		opacity:0.3
-	}
-}
-
-
-@-ms-keyframes bounce {
-	0% {
-		opacity:0.3
-	}
-	50% {
-		opacity:1;
-		background-color:#bd0505
-	}
-	100% {
-		opacity:0.3
-	}
-}
-
-@-o-keyframes bounce {
-	0% {
-		opacity:0.3
-	}
-	50% {
-		opacity:1;
-		background-color:#bd0505
-	}
-	100% {
-		opacity:0.3
-	}
-}
-
-@keyframes bounce {
-	0% {
-		opacity:0.3
-	}
-	50% {
-		opacity:1;
-		background-color:#bd0505
-	}
-	100% {
-		opacity:0.3
-	}
-}
 
