@@ -92,7 +92,7 @@ class Condo::Strata::AmazonS3
 		# Decide what type of request is being sent
 		#
 		request = {}
-		if options[:file_size] > 5242880	# 5 mb (minimum chunk size)
+		if options[:file_size] > 5.megabytes	# 5 mb (minimum chunk size)
 			options[:object_options][:parameters][:uploads] = ''	# Customise the request to be a chunked upload
 			options.delete(:file_id)								# Does not apply to chunked uploads
 			

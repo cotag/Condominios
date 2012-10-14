@@ -58,6 +58,7 @@ class Condo::Strata::GoogleCloudStorage
       <ResponseHeader>content-type</ResponseHeader>
       <ResponseHeader>accept</ResponseHeader>
       <ResponseHeader>x-goog-api-version</ResponseHeader>
+      <ResponseHeader>x-goog-resumable</ResponseHeader>
     </ResponseHeaders>
     <MaxAgeSec>1800</MaxAgeSec>
   </Cors>
@@ -119,14 +120,14 @@ DATA
 			:headers => {},
 			:parameters => {},
 			:protocol => :https
-		}.merge!(options[:object_options])
+		}.merge!(options[:object_options] || {})
 		options.merge!(@options)
 		
 		
 		#
 		# Set the access control headers
 		#
-		options[:object_options][:headers]['x-goog-api-version'] = 2
+		options[:object_options][:headers]['x-goog-api-version'] = 1
 		
 		if options[:object_options][:headers]['x-goog-acl'].nil?
 			options[:object_options][:headers]['x-goog-acl'] = case options[:object_options][:permissions]
@@ -145,10 +146,23 @@ DATA
 		# Decide what type of request is being sent
 		# => Currently google only supports direct uploads (no CORS resumables yet!)
 		#
-		{
+		return {
 			:signature => sign_request(options),
 			:type => :direct_upload
 		}
+		
+		#
+		# This is what we'll return when resumables work with CORS
+		#
+		if options[:file_size] > 2.megabytes
+			# Resumables may not support the md5 header at this time
+			options[:object_options][:verb] = :post
+			options[:object_options][:headers]['x-goog-resumable'] = 'start'
+			return {
+				:signature => sign_request(options),
+				:type => :chunked_upload				# triggers resumable
+			}
+		end
 	end
 	
 	
@@ -157,8 +171,28 @@ DATA
 	# => doesn't work with CORS yet
 	#
 	def get_parts(options)
+		options[:object_options] = {
+			:expires => 5.minutes.from_now,
+			:verb => :put,
+			:headers => {},
+			:parameters => {},
+			:protocol => :https
+		}.merge!(options[:object_options])
+		options.merge!(@options)
+		
+		#
+		# Set the upload and request the range of bytes we are after
+		#
+		options[:object_options][:parameters]['upload_id'] = options[:resumable_id]
+		## This can be set on the client side as it is not part of the signed request
+		#options[:object_options][:headers]['Content-Range'] = "bytes */#{options[:file_size]}"
+		
+		#
+		# provide the signed request
+		#
 		{
-			:type => :parts
+			:type => :parts,
+			:signature => sign_request(options)
 		}
 	end
 	
@@ -167,9 +201,9 @@ DATA
 	# Returns the requests for uploading parts and completing a resumable upload
 	#
 	def set_part(options)
-		{
-			:type => :part_upload
-		}
+		resp = get_parts(options)
+		resp[:type] => :part_upload
+		return resp
 	end
 	
 	
@@ -206,13 +240,20 @@ DATA
 		
 		
 		#
-		# Add request params
+		# Add signed request params
 		#
-		url << '?'
-		options[:object_options][:parameters].each do |key, value|
-			url += value.empty? ? "#{key}&" : "#{key}=#{value}&"
+		other_params = ''
+		signed_params = '?'
+		(options[:object_options][:parameters] || {}).each do |key, value|
+            if ['acl', 'cors', 'location', 'logging', 'requestPayment', 'torrent', 'versions', 'versioning'].include?(key)
+				signed_params << "#{key}&"
+			else
+				other_params << (value.empty? ? "#{key}&" : "#{key}=#{value}&")
+            end
 		end
-		url.chop!
+		signed_params.chop!
+		
+		url << signed_params
 		
 		
 		#
@@ -220,7 +261,7 @@ DATA
 		#
 		signature = "#{verb}\n#{options[:file_id]}\n#{options[:object_options][:headers]['Content-Type']}\n#{options[:object_options][:expires]}\n"
 		if verb != :GET
-			options[:object_options][:headers]['x-goog-date'] = Time.now.utc.httpdate
+			options[:object_options][:headers]['x-goog-date'] ||= Time.now.utc.httpdate
 		
 			google_headers, canonical_google_headers = {}, ''			# Copied from https://github.com/fog/fog/blob/master/lib/fog/google/storage.rb
 			for key, value in options[:object_options][:headers]
@@ -243,8 +284,9 @@ DATA
 		#
 		signature = Base64.encode64(OpenSSL::HMAC.digest(OpenSSL::Digest::Digest.new('sha1'), @options[:secret_key], signature)).chomp!
 		
-		url += options[:object_options][:parameters].present? ? '&' : '?'
-		url = "#{options[:object_options][:protocol]}://#{options[:bucket_name]}.storage.googleapis.com#{url}GoogleAccessId=#{@options[:access_id]}&Expires=#{options[:object_options][:expires]}&Signature=#{CGI::escape(signature)}"
+		
+		url += signed_params.present? ? '&' : '?'
+		url = "#{options[:object_options][:protocol]}://#{options[:bucket_name]}.storage.googleapis.com#{url}#{other_params}GoogleAccessId=#{@options[:access_id]}&Expires=#{options[:object_options][:expires]}&Signature=#{CGI::escape(signature)}"
 		options[:object_options][:headers]['Authorization'] = "GOOG1 #{@options[:access_id]}:#{signature}"
 		
 		
