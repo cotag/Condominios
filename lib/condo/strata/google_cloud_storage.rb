@@ -202,7 +202,7 @@ DATA
 	#
 	def set_part(options)
 		resp = get_parts(options)
-		resp[:type] => :part_upload
+		resp[:type] = :part_upload
 		return resp
 	end
 	
