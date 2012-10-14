@@ -15,7 +15,7 @@ class Condo::Strata::RackspaceCloudFiles
 				:provider => 'Rackspace',
 				:rackspace_username => options[:username],
 				:rackspace_api_key => options[:secret_key],
-				:rackspace_auth_url => options[:auth_url] || 'identity.api.rackspacecloud.com' # US and UK 'lon.auth.api.rackspacecloud.com'
+				:rackspace_auth_url => options[:auth_url] || 'identity.api.rackspacecloud.com' # is US and UK is 'lon.auth.api.rackspacecloud.com'
 			}
 		}.merge!(options)
 		
@@ -25,7 +25,6 @@ class Condo::Strata::RackspaceCloudFiles
 		
 		
 		@options[:location] = @options[:location].to_sym
-		@options[:region] = @options[:location] == :'us-east-1' ? 's3.amazonaws.com' : "s3-#{@options[:location]}.amazonaws.com"
 	end
 	
 	

@@ -33,13 +33,14 @@
 	//
 	// Implements the Condo API
 	//
-	uploads.factory('Condo.Api', ['$http', '$rootScope', '$q', 'Condo.AmazonS3', 'Condo.RackspaceCloudFiles', function($http, $rootScope, $q, AmazonS3Condo, RackspaceFilesCondo) {
+	uploads.factory('Condo.Api', ['$http', '$rootScope', '$q', 'Condo.AmazonS3', 'Condo.RackspaceCloudFiles', 'Condo.GoogleCloudStorage', function($http, $rootScope, $q, AmazonS3Condo, RackspaceFilesCondo, GoogleStorageCondo) {
 		
 		
 		var token = $('meta[name="csrf-token"]').attr('content'),
 			residencies = {
 				AmazonS3: AmazonS3Condo,
-				RackspaceCloudFiles: RackspaceFilesCondo
+				RackspaceCloudFiles: RackspaceFilesCondo,
+				GoogleCloudStorage: GoogleStorageCondo
 			},
 
 		

@@ -1,6 +1,6 @@
 /**
-*	CoTag Condo Rackspace Cloud Files Strategy
-*	Direct to cloud resumable uploads for Amazon S3
+*	CoTag Condo Amazon S3 Strategy
+*	Direct to cloud resumable uploads for Google Cloud Storage
 *	
 *   Copyright (c) 2012 CoTag Media.
 *	
@@ -18,12 +18,12 @@
 (function (factory) {
 	if (typeof define === 'function' && define.amd) {
 		// AMD
-		define(['jquery', 'spark-md5', 'condo_uploader'], factory);
+		define(['jquery', 'spark-md5', 'base64', 'condo_uploader'], factory);
 	} else {
 		// Browser globals
-		factory(jQuery, window.SparkMD5, window.CondoUploader);
+		factory(jQuery, window.SparkMD5, window.base64, window.CondoUploader);
 	}
-}(function ($, MD5, uploads, undefined) {
+}(function ($, MD5, base64, uploads, undefined) {
 	'use strict';
 	
 	//
@@ -31,7 +31,7 @@
 	//	We should split all these into different files too (controller and factories separate from directives and views)
 	//	So we can have different views for the same controller
 	//
-	uploads.factory('Condo.RackspaceCloudFiles', ['$rootScope', '$q', function($rootScope, $q) {
+	uploads.factory('Condo.GoogleCloudStorage', ['$rootScope', '$q', function($rootScope, $q) {
 		var PENDING = 0,
 			STARTED = 1,
 			PAUSED = 2,
@@ -40,10 +40,26 @@
 			ABORTED = 5,
 		
 		
-		Rackspace = function (api, file) {
+		
+		hexToBin = function(input) {
+			var result = "";
+			
+			if ((input.length % 2) > 0) {
+				input = '0' + input;
+			}
+			
+			for (var i = 0, length = input.length; i < length; i += 2) {
+				result += String.fromCharCode(parseInt(input.slice(i, i + 2), 16));
+			}
+			
+			return result;
+		},
+		
+		
+		GoogleCloudStorage = function (api, file) {
 			var self = this,
 				strategy = null,
-				part_size = 2097152,			// Multi-part uploads should be bigger then this
+				part_size = 1048576,	// This is the amount of the file we read into memory as we are building the hash (1mb)
 				defaultError = function(reason) {
 					self.pause(reason);
 				},
@@ -61,17 +77,21 @@
 			
 			
 			//
-			// We need to sign our uploads so rackspace can confirm they are valid for us
+			// We need to sign our uploads so Google can confirm they are valid for us
 			//	TODO:: use http://updates.html5rocks.com/2011/12/Transferable-Objects-Lightning-Fast
-			//		where available :)
+			//		where available :) - especially important since we have to hash the entire file
 			//
-			build_request = function(part_number) {
+			build_request = function(part_number, hash) {
 				var result = $q.defer(),
 					reader = new FileReader(),
 					fail = function(){
 						result.reject('file read failed');
 					},
 					current_part;
+					
+				if (part_number == 1) {
+					hash = new MD5();
+				}
 				
 				if (file.size > part_size) {		// If file bigger then 5mb we expect a chunked upload
 					var endbyte = part_number * part_size;
@@ -83,11 +103,8 @@
 				}
 				
 				reader.onload = function(e) {
-					result.resolve({
-						data: current_part,
-						data_id: MD5.hashBinary(e.target.result),
-						part_number: part_number
-					});
+					hash.appendBinary(e.target.result);
+					result.resolve(hash);
 					
 					
 					if(!$rootScope.$$phase) {
@@ -98,13 +115,27 @@
 				reader.onabort = fail;
 				reader.readAsBinaryString(current_part);
 				
-				return result.promise;
+				//
+				// Chaining promises means the UI will have a chance to update
+				//
+				return result.promise.then(function(val){
+					if ((part_number * part_size) < file.size) {
+						return build_request(part_number + 1, val);
+					} else {
+						return {
+							data: file,
+							data_id: base64.encode(hexToBin(val.end()))
+						}
+					}
+				}, function(reason){
+					$q.reject(reason);
+				});
 			},
 
 			//
 			// Direct file upload strategy
 			//
-			RackspaceDirect = function(data) {
+			GoogleDirect = function(data) {
 				//
 				// resume
 				// abort
@@ -129,7 +160,7 @@
 				
 				this.pause = function() {
 					api.abort();
-					
+						
 					if(!finalising) {
 						restart();		// Should occur before events triggered
 						self.progress = 0;
@@ -154,90 +185,11 @@
 
 
 			//
-			// Chunked upload strategy--------------------------------------------------
+			// Resumable upload strategy--------------------------------------------------
 			//
-			RackspaceChunked = function (data, first_chunk) {
-				//
-				// resume
-				// abort
-				// pause
-				//
-				var last_part = 0,
+			GoogleResumable = function (data, first_chunk) {
 				
-				//
-				// Get the next part signature
-				//
-				next_part = function(part_number) {
-					//
-					// Check if we are past the end of the file
-					//
-					if ((part_number - 1) * part_size < file.size) {
-						build_request(part_number).then(function(result) {
-							if (self.state != UPLOADING)
-								return;						// upload was paused or aborted as we were reading the file
-							
-							api.update({
-								resumable_id: part_number,
-								file_id: result.data_id,
-								part: part_number
-							}).then(function(data) {
-								set_part(data, result);
-							}, defaultError);
-						
-						}, function(reason){
-							self.pause(reason);
-						});	// END BUILD_REQUEST
-						
-					} else {
-						//
-						// We're after the final commit
-						//
-						api.edit('finish').
-							then(function(request) {
-								api.process_request(request).then(completeUpload, defaultError);
-							}, defaultError);
-					}
-				},
-				
-					
-				//
-				// Send a part to amazon
-				//
-				set_part = function(request, part_info) {
-					request['data'] = part_info.data;
-					api.process_request(request, function(progress) {
-						self.progress = (part_info.part_number - 1) * part_size + progress;
-					}).then(function(result) {
-			        	last_part = part_info.part_number;
-			        	next_part(last_part + 1);
-					}, function(reason) {
-						self.progress = (part_info.part_number - 1) * part_size;
-						defaultError(reason);
-					});
-				};
-					
-
-				self.state = UPLOADING;
-	
-				this.resume = function() {
-					self.state = UPLOADING;
-					next_part(last_part + 1);
-				};
-				
-				this.pause = function() {
-					api.abort();
-				};
-				
-				
-				//
-				// We need to check if we are resuming or starting an upload
-				//
-				if(data.type == 'parts') {
-					next_part(data.current_part);
-				} else {
-					set_part(data, first_chunk);
-				}
-			}; // END CHUNKED
+			}; // END RESUMABLE
 			
 			
 			//
@@ -262,7 +214,7 @@
 					
 					this.message = null;
 					this.state = STARTED;
-					strategy = {};			// This function shouldn't be called twice so we need a state (TODO:: fix this)
+					strategy = {};			// This function shouldn't be called twice so we need a state
 					
 					build_request(1).then(function(result) {
 						if (self.state != STARTED)
@@ -271,9 +223,9 @@
 						api.create({file_id: result.data_id}).
 							then(function(data) {
 								if(data.type == 'direct_upload') {
-									strategy = new RackspaceDirect(data);
+									strategy = new GoogleDirect(data);
 								} else {
-									strategy = new RackspaceChunked(data, result);
+									strategy = new GoogleResumable(data, result);
 								}
 							}, defaultError);
 						
@@ -326,12 +278,12 @@
 					this.message = reason;
 				}
 			};
-		}; // END AMAZON
+		}; // END GOOGLE
 		
 		
 		return {
 			new_upload: function(api, file) {
-				return new Rackspace(api, file);
+				return new GoogleCloudStorage(api, file);
 			}
 		};
 		

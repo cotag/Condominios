@@ -3,4 +3,5 @@
 //= require condo/uploader
 //= require condo/amazon
 //= require condo/rackspace
+//= require condo/google
 //= require condo/controller

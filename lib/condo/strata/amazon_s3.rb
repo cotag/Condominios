@@ -263,20 +263,20 @@ class Condo::Strata::AmazonS3
 		#
 		# Add request params
 		#
-		url += '?' if options[:object_options][:parameters].present?
+		url << '?'
 		options[:object_options][:parameters].each do |key, value|
 			url += value.empty? ? "#{key}&" : "#{key}=#{value}&"
 		end
-		url.chomp!('&') if options[:object_options][:parameters].present?
+		url.chop!
 		
 		#
 		# Build a request signature
 		#
 		signature = "#{options[:object_options][:verb].to_s.upcase}\n#{options[:file_id]}\n#{options[:object_options][:headers]['Content-Type']}\n#{options[:object_options][:expires]}\n"
 		options[:object_options][:headers].each do |key, value|
-			signature += "#{key}:#{value}\n" if key =~ /x-amz-/
+			signature << "#{key}:#{value}\n" if key =~ /x-amz-/
 		end
-		signature += "#{url}"
+		signature << url
 		
 		
 		#
