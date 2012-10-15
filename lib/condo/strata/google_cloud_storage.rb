@@ -94,9 +94,10 @@ DATA
 		options = {}.merge!(options)	# Need to deep copy here
 		options[:object_options] = {
 			:expires => 5.minutes.from_now,
-			:verb => :get,		# Post for multi-part uploads http://docs.amazonwebservices.com/AmazonS3/latest/API/mpUploadInitiate.html
+			:verb => :get,
 			:headers => {},
-			:parameters => {}
+			:parameters => {},
+			:protocol => :https
 		}.merge!(options[:object_options] || {})
 		options.merge!(@options)
 		
@@ -155,7 +156,7 @@ DATA
 		# This is what we'll return when resumables work with CORS
 		#
 		if options[:file_size] > 2.megabytes
-			# Resumables may not support the md5 header at this time
+			# Resumables may not support the md5 header at this time - have to compare ETag and fail on the client side
 			options[:object_options][:verb] = :post
 			options[:object_options][:headers]['x-goog-resumable'] = 'start'
 			return {
@@ -216,7 +217,7 @@ DATA
 	def destroy(upload)
 		connection = fog_connection
 		directory = connection.directories.get(upload.bucket_name)	# it is assumed this exists - if not then the upload wouldn't have taken place		
-		file = directory.files.get(upload.object_key)	# this is the manifest when resumable
+		file = directory.files.get(upload.object_key)				# NOTE:: I only assume this works with resumables... should look into it
 		
 		return true if file.nil?
 		return file.destroy

@@ -39,6 +39,10 @@ module Condo
 		end
 		
 		
+		#
+		# Provides a callback whenever attempting to select a provider for the current request
+		# => Allows multiple providers for different users / controllers or dynamic providers
+		#
 		def self.set_dynamic_provider(namespace, callback = nil, &block)
 			if callback.is_a?(Proc)
 				@@dynamics[namespace.to_sym] = callback
@@ -50,12 +54,14 @@ module Condo
 		end
 		
 		def dynamic_provider_present?(namespace)
-			return false if @@dynamics.nil?
-			return false if @@dynamics[namespace.to_sym].nil?
-			return true
+			return false if @@dynamics.nil? || @@dynamics[namespace.to_sym].nil?
+			true
 		end
 		
 		
+		#
+		# Allows for predefined storage providers (maybe you only use Amazon?)
+		#
 		def self.add_residence(name, options = {})
 			@@residencies ||= []
 			@@residencies << ("Condo::Strata::#{name.to_s.camelize}".constantize.new(options)).tap do |res|
@@ -81,6 +87,10 @@ module Condo
 		end
 		
 		
+		#
+		# Storage provider selection routine
+		# => pass in :dynamic => true with :name and connection options to create a new instance
+		#
 		def set_residence(name, options)
 			if options[:namespace].present? && dynamic_provider_present?(options[:namespace])
 				if options[:upload].present?

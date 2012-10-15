@@ -1,11 +1,11 @@
-h1. Condominios
+h1. Condominios aka Condo
 
-A Rails plugin that makes direct uploads to multiple cloud storage providers easy.
+A "Rails plugin":http://guides.rubyonrails.org/plugins.html and "AngularJS application":http://angularjs.org/ that makes direct uploads to multiple cloud storage providers easy.
 Only supports "XMLHttpRequest Level 2":http://en.wikipedia.org/wiki/XMLHttpRequest capable browsers and cloud providers that have a "RESTful API":http://en.wikipedia.org/wiki/Representational_state_transfer with "CORS":http://en.wikipedia.org/wiki/Cross-origin_resource_sharing support.
 
 Why compromise?
 
-Get started now: @gem install condo@
+Get started now: @gem install condo@ or checkout the "example application":https://github.com/cotag/condo_example
 
 
 h2. License
@@ -13,8 +13,117 @@ h2. License
 GNU Lesser General Public License v3 (LGPL version 3)
 
 
+h2. Concept
+
+Condominios was created to provide direct to cloud uploads using standards based browser technology. However it is not limited to that use case.
+The API is RESTful, providing an abstraction layer and signed URLs that can be utilised in native (mobile) applications.
+
+The main advantages are:
+* Off-loads processing to client machines
+* Better guarantees against upload corruption
+** file hashing on the client side instead of an intermediary where it probably won't be hashed either
+* Upload results are guaranteed if the cloud provider provides atomic operations
+** user is always aware of any failures in the process
+* Detailed progress and control over the upload
+ 
+This has numerous advantages over traditional Form Data style post uploads too.
+* Progress bars
+* Resumability when uploading large files
+
+
+Support for all major browsers and IE10.
+* Tested in Firefox 4, Safari 6 and Chromes latest stable
+
+
 h2. Usage
 
-Coming Soon!
+h3. Terms
 
+* Residence == the current storage provider
+* Resident == the current user
+
+
+h3. Quick Start
+
+See the "example application":https://github.com/cotag/condo_example which implements the steps below on an otherwise blank rails app.
+
+# Add the following to your rails application gemfile:
+#* @gem 'condo'@
+#* @gem 'condo_active_record'@ (more backends coming soon)
+#* @gem 'condo_interface'@ (optional)
+# Run migrations
+#* @rake railties:install:migrations FROM=condo_active_record@
+#* @rake db:migrate@
+# Create an initialiser for any default residencies. (details further down)
+# Create controllers that will be used as Condo endpoints
+#* Typically @rails g controller Uploads@
+#* Add the resource to your routes
+# At the top of the new controller add the following line to the class: @include Condo@
+#* This creates the following public methods at run time: new, create, edit, update, destroy implementing the API
+#* The following protected methods are also generated: set_residence, current_residence, current_resident, current_upload
+# You are encouraged to use standard filters to authenticate users and set the residence (if this is dynamic) + implement index / show if desired
+# You must implement the following call-backs:
+#* resident_id - this should provide a unique identifier for the current user, used for authorisation
+#* upload_complete - provides the upload information for storage in the greater application logic. Return true if successful.
+#* destroy_upload - provides the upload information so that a scheduled task can be created to clean up the upload. Return true if successfully scheduled.
+#** This should be done in the background using something like "Fog":http://fog.io/ Can't trust the client
+
+
+If you are using "Condo Interface":https://github.com/cotag/condo_interface then you may want to do the following:
+# Create an index for your controller @def index; end@
+# Create an index.html.erb in your view with:
+#* @<div class="uploads-container" data-ng-app="CondoUploader"><%= render "condo_interface/upload" %></div>@
+
+Alternative you could load an AngularJS template linking to <%= asset_path('templates/_upload.html') %>
+
+
+h3. Defining Static Residencies
+
+If you are creating an application that only communicates with one or two storage providers or accounts then this is the simplest way to get started.
+In an initialiser (<-- I'm Australian) do the following:
+
+<pre><code class="ruby">
+Condo::Configuration.add_residence(:AmazonS3, {
+	:access_id => ENV['S3_KEY'],
+	:secret_key => ENV['S3_SECRET']
+	# :location => 'us-west-1'	# or 'ap-southeast-1' etc (see http://docs.amazonwebservices.com/general/latest/gr/rande.html#s3_region)
+								# Defaults to 'us-east-1' or US Standard - not required for Google
+	# :namespace => :admin_resident	# Allows you to assign different defaults to different controllers
+									# Controller must have the following line 'set_namespace :admin_resident'
+})
+
+</code></pre>
+
+The first residence to be defined in a namespace will be the default. To change the residence for the current request use @set_residence(:name, :location)@ - location is optional
+Currently available residencies:
+* :AmazonS3
+* :GoogleCloudStorage
+* :RackspaceCloudFiles
+
+
+You can also define a dynamic residence each request (maybe clients provided you with access information for their storage provider)
+
+<pre><code class="ruby">
+set_residence(:AmazonS3, {
+	:access_id => user.s3_key,
+	:secret_key => user.s3_secret,
+	:dynamic => true	# Otherwise the same as add_residence
+});
+	
+
+</code></pre>
+
+
+h3. Callbacks
+
+These are pretty well defined "here":https://github.com/cotag/condo_example/blob/master/app/controllers/uploads_controller.rb
+
+
+h2. TODO::
+
+# Write tests... So many tests
+# Create a wiki describing things in more detail
+# Implement API for more residencies
+# Sign other useful requests (bucket listings with search etc)
+#* For Dropbox or Megaupload style applications
 
