@@ -6,6 +6,7 @@ Only supports "XMLHttpRequest Level 2":http://en.wikipedia.org/wiki/XMLHttpReque
 Why compromise?
 
 Get started now: @gem install condo@ or checkout the "example application":https://github.com/cotag/condo_example
+Also see our "github pages site":http://cotag.github.com/Condominios/
 
 
 h2. License
