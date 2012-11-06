@@ -251,6 +251,9 @@
 				params['file_size'] = the_file.size;
 				params['file_name'] = the_file.name;
 				
+				if(!!the_file.dir_path)
+					params['file_path'] = the_file.dir_path;
+				
 				return $http({
 					method: 'GET',
 					url: api_endpoint + '/new',

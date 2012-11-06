@@ -71,6 +71,9 @@
 				ret = 0;		// We only want to check for auto-start after the files have been added
 			
 			for (; i < length; i += 1) {
+				if(files[i].size <= 0)
+					continue;
+				
 				api.check_provider($scope.endpoint, files[i]).then(function(upload){
 					ret += 1;
 					$scope.uploads.push(upload);

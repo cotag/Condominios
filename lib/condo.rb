@@ -29,6 +29,7 @@ module Condo
 				@upload ||= {}
 				@upload[:file_size] = params[:file_size].to_i
 				@upload[:file_name] = (instance_eval &@@callbacks[:sanitize_filename])
+				@upload[:file_path] = (instance_eval &@@callbacks[:sanitize_filepath]) if params[:file_path]
 				
 				valid, errors = instance_eval &@@callbacks[:pre_validation]		# Ensure the upload request is valid before uploading
 				
@@ -56,6 +57,7 @@ module Condo
 				@upload[:file_size] = params[:file_size].to_i
 				@upload[:file_id] = params[:file_id]
 				@upload[:file_name] = (instance_eval &@@callbacks[:sanitize_filename])
+				@upload[:file_path] = (instance_eval &@@callbacks[:sanitize_filepath]) if params[:file_path]
 				
 				upload = condo_backend.check_exists({
 					:user_id => resident,

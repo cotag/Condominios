@@ -310,6 +310,14 @@
 			
 			
 			//
+			// File path is optional (amazon supports paths as part of the key name)
+			//	http://docs.amazonwebservices.com/AmazonS3/2006-03-01/dev/ListingKeysHierarchy.html
+			//
+			if(!!file.dir_path)
+				this.path = file.dir_path;
+			
+			
+			//
 			// Support file slicing
 			//	
 			if (typeof(file.slice) != 'function')
