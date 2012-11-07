@@ -68,7 +68,7 @@ module Condo
 				
 				if upload.present?
 					residence = set_residence(upload.provider_name, {
-						:provider_location => upload.provider_location,
+						:location => upload.provider_location,
 						:upload => upload
 					})
 					

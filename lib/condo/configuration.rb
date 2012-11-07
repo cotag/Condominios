@@ -87,7 +87,7 @@ module Condo
 					@@locations[namespace][name][options[:location].to_sym] = res
 				else
 					@@locations[namespace][name][:default] = res
-					@@locations[namespace][name][res.location] = res
+					@@locations[namespace][name][res.location.to_sym] = res
 				end
 			end
 		end
