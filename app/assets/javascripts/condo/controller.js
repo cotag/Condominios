@@ -19,10 +19,10 @@
 (function (factory) {
 	if (typeof define === 'function' && define.amd) {
 		// AMD
-		define(['jquery', 'condo_uploader'], factory);
+		define('condo_controller', ['jquery', 'condo_uploader'], factory);
 	} else {
 		// Browser globals
-		factory(jQuery, window.CondoUploader);
+		window.CondoController = factory(jQuery, window.CondoUploader);
 	}
 }(function ($, uploads, undefined) {
 	'use strict';
@@ -58,11 +58,15 @@
 		
 		
 		
-	}]).controller('UploadsCtrl', ['$scope', 'Condo.Api', 'Condo.Broadcast', function($scope, api, broadcaster) {
+	}]).controller('Condo.Controller', ['$scope', 'Condo.Api', 'Condo.Broadcast', function($scope, api, broadcaster) {
 		
 		$scope.uploads = [];
+		$scope.upload_count = 0;
 		$scope.endpoint = '/uploads';	// Default, the directive can overwrite this
+		
 		$scope.autostart = true;
+		$scope.ignore_errors = true;		// Continue to autostart after an error
+		$scope.parallelism = 1;				// number of uploads at once
 		
 		
 		$scope.add = function(files) {
@@ -74,12 +78,16 @@
 				if(files[i].size <= 0 || files[i].type == '')
 					continue;
 				
+				$scope.upload_count += 1;
+				
 				api.check_provider($scope.endpoint, files[i]).then(function(upload){
 					ret += 1;
 					$scope.uploads.push(upload);
 					if(ret == length)
 						$scope.check_autostart();
 				}, function(failure) {
+					
+					$scope.upload_count -= 1;
 					
 					ret += 1;
 					if(ret == length)
@@ -107,6 +115,7 @@
 			for (var i = 0, length = $scope.uploads.length; i < length; i += 1) {
 				if($scope.uploads[i] === upload) {
 					$scope.uploads.splice(i, 1);
+					$scope.upload_count -= 1;
 					break;
 				}
 			}
@@ -130,28 +139,57 @@
 		});
 		
 		
+		//
+		// Autostart more uploads as this is bumped up
+		//
+		$scope.$watch('parallelism', function(newValue, oldValue) {
+			if(newValue > oldValue)
+				$scope.check_autostart();
+		});
+		
+		
 		$scope.check_autostart = function() {
 			//
 			// Check if any uploads have been started already
 			//	If there are no active uploads we'll auto-start
 			//
+			// PENDING = 0,
+			// STARTED = 1,
+			// PAUSED = 2,
+			// UPLOADING = 3,
+			// COMPLETED = 4,
+			// ABORTED = 5
+			//
 			if ($scope.autostart) {
 				var shouldStart = true,
-					state, i, length;
+					state, i, length, started = 0;
 					
 				for (i = 0, length = $scope.uploads.length; i < length; i += 1) {
 					state = $scope.uploads[i].state;
-					if (state > 0 && state < 4) {
-						shouldStart = false;
-						break;
+					
+					//
+					// Count started uploads (that don't have errors if we are ignoring errors)
+					//	Up until we've reached our parallel limit, then stop
+					//
+					if (state > 0 && state < 4 && !($scope.uploads[i].error && $scope.ignore_errors)) {
+						started += 1;
+						if(started >= $scope.parallelism) {
+							shouldStart = false;
+							break;
+						}
 					}
 				}
 				
 				if (shouldStart) {
+					started = $scope.parallelism - started;		// How many can we start
+					
 					for (i = 0; i < length; i += 1) {
 						if ($scope.uploads[i].state == 0) {
 							$scope.uploads[i].start();
-							break;
+							
+							started -= 1;
+							if(started <= 0)	// Break if we can't start anymore
+								break;
 						}
 					}
 				}
@@ -161,5 +199,9 @@
 	}]);
 	
 	
+	//
+	// Anonymous function return
+	//
+	return uploads;
 	
 }));

@@ -44,7 +44,10 @@
 			var self = this,
 				strategy = null,
 				part_size = 2097152,			// Multi-part uploads should be bigger then this
+				pausing = false,
 				defaultError = function(reason) {
+					self.error = !pausing;
+					pausing = false;
 					self.pause(reason);
 				},
 
@@ -184,9 +187,7 @@
 								set_part(data, result);
 							}, defaultError);
 						
-						}, function(reason){
-							self.pause(reason);
-						});	// END BUILD_REQUEST
+						}, defaultError);	// END BUILD_REQUEST
 						
 					} else {
 						//
@@ -248,6 +249,7 @@
 			this.message = 'pending';
 			this.name = file.name;
 			this.size = file.size;
+			this.error = false;
 			
 			
 			//
@@ -260,6 +262,8 @@
 			this.start = function(){
 				if(strategy == null) {	// We need to create the upload
 					
+					pausing = false;
+					this.error = false;
 					this.message = null;
 					this.state = STARTED;
 					strategy = {};			// This function shouldn't be called twice so we need a state (TODO:: fix this)
@@ -277,12 +281,13 @@
 								}
 							}, defaultError);
 						
-					}, function(reason){
-						self.pause(reason);
-					});	// END BUILD_REQUEST
+					}, defaultError);	// END BUILD_REQUEST
 					
 					
 				} else if (this.state == PAUSED) {				// We need to resume the upload if it is paused
+					
+					pausing = false;
+					this.error = false;
 					this.message = null;
 					strategy.resume();
 				}
@@ -291,6 +296,7 @@
 			this.pause = function(reason) {
 				if(strategy != null && this.state == UPLOADING) {	// Check if the upload is uploading
 					this.state = PAUSED;
+					pausing = true;
 					strategy.pause();
 				} else if (this.state <= STARTED) {
 					this.state = PAUSED;

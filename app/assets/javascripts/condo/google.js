@@ -60,7 +60,10 @@
 			var self = this,
 				strategy = null,
 				part_size = 1048576,	// This is the amount of the file we read into memory as we are building the hash (1mb)
+				pausing = false,
 				defaultError = function(reason) {
+					self.error = !pausing;
+					pausing = false;
 					self.pause(reason);
 				},
 
@@ -200,6 +203,7 @@
 			this.message = 'pending';
 			this.name = file.name;
 			this.size = file.size;
+			this.error = false;
 			
 			
 			//
@@ -212,6 +216,8 @@
 			this.start = function(){
 				if(strategy == null) {	// We need to create the upload
 					
+					this.error = false;
+					pausing = false;
 					this.message = null;
 					this.state = STARTED;
 					strategy = {};			// This function shouldn't be called twice so we need a state
@@ -229,12 +235,12 @@
 								}
 							}, defaultError);
 						
-					}, function(reason){
-						self.pause(reason);
-					});	// END BUILD_REQUEST
+					}, defaultError);	// END BUILD_REQUEST
 					
 					
 				} else if (this.state == PAUSED) {				// We need to resume the upload if it is paused
+					this.error = false;
+					pausing = false;
 					this.message = null;
 					strategy.resume();
 				}
@@ -243,6 +249,7 @@
 			this.pause = function(reason) {
 				if(strategy != null && this.state == UPLOADING) {	// Check if the upload is uploading
 					this.state = PAUSED;
+					pausing = true;
 					strategy.pause();
 				} else if (this.state <= STARTED) {
 					this.state = PAUSED;
