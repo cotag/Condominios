@@ -73,7 +73,8 @@ See the "example application":https://github.com/cotag/condo_example which imple
 If you are using "Condo Interface":https://github.com/cotag/condo_interface then you may want to do the following:
 # Create an index for your controller @def index; end@
 # Create an index.html.erb in your view with:
-#* @<div class="uploads-container" data-ng-app="CondoUploader"><%= render "condo_interface/upload" %></div>@
+# Make sure your AngularJS app includes: @angular.module('YourApp', ['CondoUploader', 'CondoInterface']);@
+#* @<div data-ng-app="YourApp"><%= render "condo_interface/upload" %></div>@
 
 Alternative you could load an AngularJS template linking to <%= asset_path('templates/_upload.html') %>
 
