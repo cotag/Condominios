@@ -26,12 +26,7 @@
 }(function ($, MD5, uploads, undefined) {
 	'use strict';
 	
-	//
-	// TODO:: Create an Amazon, google factory etc
-	//	We should split all these into different files too (controller and factories separate from directives and views)
-	//	So we can have different views for the same controller
-	//
-	uploads.factory('Condo.RackspaceCloudFiles', ['$rootScope', '$q', function($rootScope, $q) {
+	angular.module('CondoRackspaceProvider', ['CondoUploader']).run(['$rootScope', '$q', 'Condo.Registrar', function($rootScope, $q, registrar) {
 		var PENDING = 0,
 			STARTED = 1,
 			PAUSED = 2,
@@ -99,7 +94,7 @@
 				};
 				reader.onerror = fail;
 				reader.onabort = fail;
-				reader.readAsBinaryString(current_part);
+				reader.readAsArrayBuffer(current_part);
 				
 				return result.promise;
 			},
@@ -332,14 +327,27 @@
 					this.message = reason;
 				}
 			};
-		}; // END AMAZON
+		}, // END RACKSPACE
 		
 		
-		return {
+		//
+		// Published methods
+		//
+		publish = {
 			new_upload: function(api, file) {
 				return new Rackspace(api, file);
 			}
 		};
+		
+		
+		//
+		// Register the residence with the API
+		//	Dependency injection succeeded
+		//
+		registrar.register('RackspaceCloudFiles', publish);
+		
+		
+		return publish;
 		
 	}]);
 	

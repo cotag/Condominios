@@ -26,12 +26,7 @@
 }(function ($, MD5, base64, uploads, undefined) {
 	'use strict';
 	
-	//
-	// TODO:: Create an Amazon, google factory etc
-	//	We should split all these into different files too (controller and factories separate from directives and views)
-	//	So we can have different views for the same controller
-	//
-	uploads.factory('Condo.AmazonS3', ['$rootScope', '$q', function($rootScope, $q) {
+	angular.module('CondoAmazonProvider', ['CondoUploader']).run(['$rootScope', '$q', 'Condo.Registrar', function($rootScope, $q, registrar) {
 		var PENDING = 0,
 			STARTED = 1,
 			PAUSED = 2,
@@ -116,7 +111,7 @@
 				};
 				reader.onerror = fail;
 				reader.onabort = fail;
-				reader.readAsBinaryString(current_part);
+				reader.readAsArrayBuffer(current_part);
 				
 				return result.promise;
 			},
@@ -409,14 +404,26 @@
 					this.message = reason;
 				}
 			};
-		}; // END AMAZON
+		}, // END AMAZON
 		
 		
-		return {
+		//
+		// Published methods
+		//
+		publish = {
 			new_upload: function(api, file) {
 				return new Amazon(api, file);
 			}
 		};
+		
+		
+		//
+		// Register the residence with the API
+		//	Dependency injection succeeded
+		//
+		registrar.register('AmazonS3', publish);
+		
+		return publish;
 		
 	}]);
 	

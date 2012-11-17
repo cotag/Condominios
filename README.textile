@@ -32,8 +32,8 @@ This has numerous advantages over traditional Form Data style post uploads too.
 * Resumability when uploading large files
 
 
-Support for all major browsers and IE10.
-* Tested in Firefox 4, Safari 6 and Chromes latest stable
+Support for all major browsers
+* Tested in Firefox 4, Safari 6, Chromes latest stable and IE10 (IE10 on Win7)
 
 
 h2. Usage

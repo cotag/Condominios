@@ -26,12 +26,8 @@
 }(function ($, MD5, base64, uploads, undefined) {
 	'use strict';
 	
-	//
-	// TODO:: Create an Amazon, google factory etc
-	//	We should split all these into different files too (controller and factories separate from directives and views)
-	//	So we can have different views for the same controller
-	//
-	uploads.factory('Condo.GoogleCloudStorage', ['$rootScope', '$q', function($rootScope, $q) {
+	
+	angular.module('CondoGoogleProvider', ['CondoUploader']).run(['$rootScope', '$q', 'Condo.Registrar', function($rootScope, $q, registrar) {
 		var PENDING = 0,
 			STARTED = 1,
 			PAUSED = 2,
@@ -116,7 +112,7 @@
 				};
 				reader.onerror = fail;
 				reader.onabort = fail;
-				reader.readAsBinaryString(current_part);
+				reader.readAsArrayBuffer(current_part);
 				
 				//
 				// Chaining promises means the UI will have a chance to update
@@ -285,14 +281,27 @@
 					this.message = reason;
 				}
 			};
-		}; // END GOOGLE
+		}, // END GOOGLE
 		
 		
-		return {
+		//
+		// Published methods
+		//
+		publish = {
 			new_upload: function(api, file) {
 				return new GoogleCloudStorage(api, file);
 			}
 		};
+		
+		
+		//
+		// Register the residence with the API
+		//	Dependency injection succeeded
+		//
+		registrar.register('GoogleCloudStorage', publish);
+		
+		
+		return publish;
 		
 	}]);
 	

@@ -27,21 +27,17 @@
 }(function ($, undefined) {
 	'use strict';
 	
-	var uploads = angular.module('CondoUploader', []);
+	var uploads = angular.module('CondoUploader', []),
+		residencies = {};
 	
 	
 	//
 	// Implements the Condo API
 	//
-	uploads.factory('Condo.Api', ['$http', '$rootScope', '$q', 'Condo.AmazonS3', 'Condo.RackspaceCloudFiles', 'Condo.GoogleCloudStorage', function($http, $rootScope, $q, AmazonS3Condo, RackspaceFilesCondo, GoogleStorageCondo) {
+	uploads.factory('Condo.Api', ['$http', '$rootScope', '$q', function($http, $rootScope, $q) {
 		
 		
 		var token = $('meta[name="csrf-token"]').attr('content'),
-			residencies = {
-				AmazonS3: AmazonS3Condo,
-				RackspaceCloudFiles: RackspaceFilesCondo,
-				GoogleCloudStorage: GoogleStorageCondo
-			},
 
 		
 		condoConnection = function(api_endpoint, params) {
@@ -289,7 +285,16 @@
 				});
 			}
 		};
-	}]);
+	}]).factory('Condo.Registrar', function(){
+		return {
+			//
+			// Simple dependency injection allows us to load only the providers we need
+			//
+			register: function(provider_name, iface) {
+				residencies[provider_name] = iface;
+			}
+		};
+	});
 	
 	
 	
