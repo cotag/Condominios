@@ -19,7 +19,7 @@
 (function (factory) {
 	if (typeof define === 'function' && define.amd) {
 		// AMD
-		define('condo_controller', ['jquery', 'condo_uploader'], factory);
+		define('condo-controller', ['jquery', 'condo-uploader'], factory);
 	} else {
 		// Browser globals
 		window.CondoController = factory(jQuery, window.CondoUploader);
@@ -32,33 +32,7 @@
 	//
 	// Create a controller for managing the upload states
 	//
-	uploads.factory('Condo.Broadcast', ['$rootScope', function($rootScope) {
-		// eventBroadcaster is the object created by the factory method.
-		var eventBroadcaster = {};
-		
-		// The message is a string or object to carry data with the event.
-		eventBroadcaster.message = '';
-		
-		// The event name is a string used to define event types.
-		eventBroadcaster.eventName = '';
-		
-		// This method is called from within a controller to define an event and attach data to the eventBroadcaster object.
-		eventBroadcaster.broadcast = function(evName, msg) {
-			this.message = msg;
-			this.eventName = evName;
-			this.broadcastItem();
-		};
-		
-		// This method broadcasts an event with the specified name.
-		eventBroadcaster.broadcastItem = function() {
-			$rootScope.$broadcast(this.eventName);
-		};
-
-		return eventBroadcaster;
-		
-		
-		
-	}]).controller('Condo.Controller', ['$scope', 'Condo.Api', 'Condo.Broadcast', function($scope, api, broadcaster) {
+	uploads.controller('Condo.Controller', ['$scope', 'Condo.Api', 'Condo.Broadcast', function($scope, api, broadcaster) {
 		
 		$scope.uploads = [];
 		$scope.upload_count = 0;

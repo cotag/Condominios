@@ -18,16 +18,15 @@
 (function (factory) {
 	if (typeof define === 'function' && define.amd) {
 		// AMD
-		define(['jquery', 'spark-md5', 'base64', 'condo_uploader'], factory);
+		define(['jquery', 'base64', 'condo-uploader'], factory);
 	} else {
 		// Browser globals
-		factory(jQuery, window.SparkMD5, window.base64, window.CondoUploader);
+		factory(jQuery, window.base64);
 	}
-}(function ($, MD5, base64, uploads, undefined) {
+}(function ($, base64) {
 	'use strict';
 	
-	
-	angular.module('CondoGoogleProvider', ['CondoUploader']).run(['$rootScope', '$q', 'Condo.Registrar', function($rootScope, $q, registrar) {
+	angular.module('CondoGoogleProvider', ['CondoUploader', 'CondoAbstractMd5']).run(['$q', 'Condo.Registrar', 'Condo.Md5', function($q, registrar, md5) {
 		var PENDING = 0,
 			STARTED = 1,
 			PAUSED = 2,
@@ -77,57 +76,15 @@
 			
 			//
 			// We need to sign our uploads so Google can confirm they are valid for us
-			//	TODO:: use http://updates.html5rocks.com/2011/12/Transferable-Objects-Lightning-Fast
-			//		where available :) - especially important since we have to hash the entire file
 			//
-			build_request = function(part_number, hash) {
-				var result = $q.defer(),
-					reader = new FileReader(),
-					fail = function(){
-						result.reject('file read failed');
-					},
-					current_part;
-					
-				if (part_number == 1) {
-					hash = new MD5();
-				}
-				
-				if (file.size > part_size) {		// If file bigger then 5mb we expect a chunked upload
-					var endbyte = part_number * part_size;
-					if (endbyte > file.size)
-						endbyte = file.size;
-					current_part = file.slice((part_number - 1) * part_size, endbyte);
-				} else {
-					current_part = file;
-				}
-				
-				reader.onload = function(e) {
-					hash.appendBinary(e.target.result);
-					result.resolve(hash);
-					
-					
-					if(!$rootScope.$$phase) {
-						$rootScope.$apply();					// This triggers the promise response if required
-					}
-				};
-				reader.onerror = fail;
-				reader.onabort = fail;
-				reader.readAsArrayBuffer(current_part);
-				
-				//
-				// Chaining promises means the UI will have a chance to update
-				//
-				return result.promise.then(function(val){
-					if ((part_number * part_size) < file.size) {
-						return build_request(part_number + 1, val);
-					} else {
-						return {
-							data: file,
-							data_id: base64.encode(hexToBin(val.end()))
-						}
+			build_request = function() {
+				return md5.hash(file).then(function(val) {
+					return {
+						data: file,
+						data_id: base64.encode(hexToBin(val))
 					}
 				}, function(reason){
-					$q.reject(reason);
+					return $q.reject(reason);
 				});
 			},
 
@@ -218,7 +175,7 @@
 					this.state = STARTED;
 					strategy = {};			// This function shouldn't be called twice so we need a state
 					
-					build_request(1).then(function(result) {
+					build_request().then(function(result) {
 						if (self.state != STARTED)
 							return;						// upload was paused or aborted as we were reading the file
 						
@@ -281,28 +238,18 @@
 					this.message = reason;
 				}
 			};
-		}, // END GOOGLE
-		
-		
-		//
-		// Published methods
-		//
-		publish = {
-			new_upload: function(api, file) {
-				return new GoogleCloudStorage(api, file);
-			}
-		};
+		}; // END GOOGLE
 		
 		
 		//
 		// Register the residence with the API
 		//	Dependency injection succeeded
 		//
-		registrar.register('GoogleCloudStorage', publish);
-		
-		
-		return publish;
-		
+		registrar.register('GoogleCloudStorage', {
+			new_upload: function(api, file) {
+				return new GoogleCloudStorage(api, file);
+			}
+		});
 	}]);
 	
 }));

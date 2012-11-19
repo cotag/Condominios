@@ -19,15 +19,15 @@
 (function (factory) {
 	if (typeof define === 'function' && define.amd) {
 		// AMD
-		define('condo_uploader', ['jquery'], factory);
+		define('condo-uploader', ['jquery', 'condo-broadcaster'], factory);
 	} else {
 		// Browser globals
 		window.CondoUploader = factory(jQuery);
 	}
-}(function ($, undefined) {
+}(function ($) {
 	'use strict';
 	
-	var uploads = angular.module('CondoUploader', []),
+	var uploads = angular.module('CondoUploader', ['CondoBroadcaster']),
 		residencies = {};
 	
 	

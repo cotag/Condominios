@@ -1,6 +1,6 @@
 /**
 *	CoTag Condo Rackspace Cloud Files Strategy
-*	Direct to cloud resumable uploads for Amazon S3
+*	Direct to cloud resumable uploads for Rackspace Cloud Files
 *	
 *   Copyright (c) 2012 CoTag Media.
 *	
@@ -18,15 +18,15 @@
 (function (factory) {
 	if (typeof define === 'function' && define.amd) {
 		// AMD
-		define(['jquery', 'spark-md5', 'condo_uploader'], factory);
+		define(['jquery', 'condo-uploader'], factory);
 	} else {
 		// Browser globals
-		factory(jQuery, window.SparkMD5, window.CondoUploader);
+		factory(jQuery);
 	}
-}(function ($, MD5, uploads, undefined) {
+}(function ($) {
 	'use strict';
 	
-	angular.module('CondoRackspaceProvider', ['CondoUploader']).run(['$rootScope', '$q', 'Condo.Registrar', function($rootScope, $q, registrar) {
+	angular.module('CondoRackspaceProvider', ['CondoUploader', 'CondoAbstractMd5']).run(['$q', 'Condo.Registrar', 'Condo.Md5', function($q, registrar, md5) {
 		var PENDING = 0,
 			STARTED = 1,
 			PAUSED = 2,
@@ -60,16 +60,9 @@
 			
 			//
 			// We need to sign our uploads so rackspace can confirm they are valid for us
-			//	TODO:: use http://updates.html5rocks.com/2011/12/Transferable-Objects-Lightning-Fast
-			//		where available :)
 			//
 			build_request = function(part_number) {
-				var result = $q.defer(),
-					reader = new FileReader(),
-					fail = function(){
-						result.reject('file read failed');
-					},
-					current_part;
+				var current_part;
 				
 				if (file.size > part_size) {		// If file bigger then 5mb we expect a chunked upload
 					var endbyte = part_number * part_size;
@@ -80,23 +73,15 @@
 					current_part = file;
 				}
 				
-				reader.onload = function(e) {
-					result.resolve({
+				return md5.hash(current_part).then(function(val) {
+					return {
 						data: current_part,
-						data_id: MD5.hashBinary(e.target.result),
+						data_id: val,
 						part_number: part_number
-					});
-					
-					
-					if(!$rootScope.$$phase) {
-						$rootScope.$apply();					// This triggers the promise response if required
 					}
-				};
-				reader.onerror = fail;
-				reader.onabort = fail;
-				reader.readAsArrayBuffer(current_part);
-				
-				return result.promise;
+				}, function(reason){
+					return $q.reject(reason);
+				});
 			},
 
 			//
@@ -327,28 +312,18 @@
 					this.message = reason;
 				}
 			};
-		}, // END RACKSPACE
-		
-		
-		//
-		// Published methods
-		//
-		publish = {
-			new_upload: function(api, file) {
-				return new Rackspace(api, file);
-			}
-		};
+		}; // END RACKSPACE
 		
 		
 		//
 		// Register the residence with the API
 		//	Dependency injection succeeded
 		//
-		registrar.register('RackspaceCloudFiles', publish);
-		
-		
-		return publish;
-		
+		registrar.register('RackspaceCloudFiles', {
+			new_upload: function(api, file) {
+				return new Rackspace(api, file);
+			}
+		});
 	}]);
 	
 }));
