@@ -52,7 +52,7 @@ See the "example application":https://github.com/cotag/condo_example which imple
 #* @gem 'condo'@
 #* Add a datastore
 #** @gem 'condo_active_record'@ (for traditional databases)
-#** "mongoid":https://github.com/axomi/condo_mongoid by "axomi":https://github.com/axomi for "MongoDB":http://mongodb.org/
+#** "condo_mongoid":https://github.com/axomi/condo_mongoid by "axomi":https://github.com/axomi for "MongoDB":http://mongodb.org/
 #* @gem 'condo_interface'@ (optional - an example interface)
 # Run migrations if using active record
 #* @rake railties:install:migrations FROM=condo_active_record@
