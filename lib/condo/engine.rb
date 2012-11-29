@@ -13,11 +13,15 @@ module Condo
 		
 		config.autoload_paths << File.expand_path("../../../lib", __FILE__)
 		
+		
 		#
-		# Set the proper error types for Rails.
+		# Set the proper error types for Rails and add assets for compilation
 		#
-		initializer "load http errors" do |app|
+		initializer "condo initializer" do |app|
+			
 			config.after_initialize do
+				Rails.application.config.assets.precompile += ['condo/md5/hash.worker.js', 'condo/md5/hash.worker.emulator.js']
+				
 				responses = {
 					"Condo::Errors::MissingFurniture" => :not_found,
 					"Condo::Errors::LostTheKeys" => :forbidden,
@@ -29,6 +33,7 @@ module Condo
 					ActionDispatch::ShowExceptions.rescue_responses.update(responses)	# Rails 3.0/3.1
 				end
 			end
+			
 		end
 		
 		
