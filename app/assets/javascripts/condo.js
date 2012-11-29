@@ -2,4 +2,5 @@
 //= require condo/base64
 //= require condo/broadcaster
 //= require condo/uploader
+//= require condo/config
 //= require condo/controller

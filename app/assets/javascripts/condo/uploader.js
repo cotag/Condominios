@@ -266,19 +266,23 @@
 						
 					} else {
 						return $q.reject({
-							reason: 'storage provider not found'
+							type: 'error',
+							number: 0,
+							file: the_file
 						});
 					}
 				}, function(reason) {
 					if(reason.status == 406) {
 						return $q.reject({
-							reason: 'file not accepted',
+							type: 'warn',
+							number: 0,
 							details: reason.data,
 							file: the_file
 						});
 					} else {
 						return $q.reject({
-							reason: 'server error',
+							type: 'warn',
+							number: 1,
 							file: the_file
 						});
 					}

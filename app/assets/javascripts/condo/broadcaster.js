@@ -26,12 +26,18 @@
 }(function (undefined) {
 	'use strict';
 	
+	
+	//
+	// 
+	//
+	
+	
 	angular.module('CondoBroadcaster', []).factory('Condo.Broadcast', ['$rootScope', function($rootScope) {
 		// eventBroadcaster is the object created by the factory method.
 		var eventBroadcaster = {};
 		
 		// The message is a string or object to carry data with the event.
-		eventBroadcaster.message = '';
+		eventBroadcaster.message = {};
 		
 		// The event name is a string used to define event types.
 		eventBroadcaster.eventName = '';

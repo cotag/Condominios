@@ -22,7 +22,7 @@
 		define('condo-controller', ['jquery', 'condo-uploader'], factory);
 	} else {
 		// Browser globals
-		window.CondoController = factory(jQuery, window.CondoUploader);
+		factory(jQuery, window.CondoUploader);
 	}
 }(function ($, uploads, undefined) {
 	'use strict';
@@ -32,25 +32,44 @@
 	//
 	// Create a controller for managing the upload states
 	//
-	uploads.controller('Condo.Controller', ['$scope', 'Condo.Api', 'Condo.Broadcast', function($scope, api, broadcaster) {
+	uploads.controller('Condo.Controller', ['$scope', 'Condo.Api', 'Condo.Broadcast', 'Condo.Config', function($scope, api, broadcaster, config) {
 		
 		$scope.uploads = [];
 		$scope.upload_count = 0;
-		$scope.endpoint = '/uploads';	// Default, the directive can overwrite this
 		
-		$scope.autostart = true;
-		$scope.ignore_errors = true;		// Continue to autostart after an error
-		$scope.parallelism = 1;				// number of uploads at once
+		
+		//
+		// See Condo.Config for configuration options
+		//
+		$scope.endpoint = config.endpoint;
+		$scope.autostart = config.autostart;
+		$scope.ignore_errors = config.ignore_errors;			// Continue to autostart after an error?
+		$scope.parallelism = config.parallelism;				// number of uploads at once
 		
 		
 		$scope.add = function(files) {
 			var length = files.length,
 				i = 0,
-				ret = 0;		// We only want to check for auto-start after the files have been added
+				ret = 0,		// We only want to check for auto-start after the files have been added
+				file;
 			
 			for (; i < length; i += 1) {
-				if(files[i].size <= 0 || files[i].type == '')
+				file = files[i];
+				
+				if(file.size <= 0 || file.type == '')
 					continue;
+					
+				//
+				// check file size is acceptable
+				//
+				if(!config.file_checker(file) || (config.size_limit != undefined && file.size > config.size_limit)) {
+					broadcaster.broadcast('coNotice', {
+						type: 'warn',
+						number: 0,
+						file: file
+					});
+					continue;
+				}
 				
 				$scope.upload_count += 1;
 				
@@ -70,7 +89,7 @@
 					//
 					// broadcast this so it can be handled by a directive
 					//
-					broadcaster.broadcast('coFileAddFailed', failure);
+					broadcaster.broadcast('coNotice', failure);
 				});
 			}
 		};
@@ -171,11 +190,5 @@
 		};
 		
 	}]);
-	
-	
-	//
-	// Anonymous function return
-	//
-	return uploads;
 	
 }));

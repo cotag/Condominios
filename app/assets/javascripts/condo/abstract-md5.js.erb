@@ -51,7 +51,10 @@
 			hasher.onmessage = recievedMessage;
 			hasher.onerror = function(e) {
 				ready = false;
-				broadcaster.broadcast('coComponentLoadFailed', ['MD5', 'file fingerprinting']);		// Critical error
+				broadcaster.broadcast('coNotice', {
+					type: 'error',
+					number: 1
+				});
 			};
 			ready = true;
 		} else {
@@ -60,7 +63,10 @@
 				ready = true;
 				processNext();	// It is possible
 			}).fail(function(jqxhr, settings, exception) {
-				broadcaster.broadcast('coComponentLoadFailed', ['MD5', 'file fingerprinting']);
+				broadcaster.broadcast('coNotice', {
+					type: 'error',
+					number: 1
+				});
 			});
 		}
 		
