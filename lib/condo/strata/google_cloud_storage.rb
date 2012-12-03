@@ -19,13 +19,17 @@ class Condo::Strata::GoogleCloudStorage
 				:provider => 'Google',
 				:google_storage_access_key_id => options[:access_id],
 				:google_storage_secret_access_key => options[:secret_key]
-			}
+			},
+			:api => 1
 		}.merge!(options)
 		
 		
 		raise ArgumentError, 'Google Access ID missing' if @options[:access_id].nil?
 		raise ArgumentError, 'Google Secret Key missing' if @options[:secret_key].nil?
 		
+		if @options[:api] == 2
+			@options[:secret_key] = OpenSSL::PKey::RSA.new(@options[:secret_key])
+		end
 		
 		@options[:location] = @options[:location].to_sym
 	end
@@ -128,7 +132,7 @@ DATA
 		#
 		# Set the access control headers
 		#
-		options[:object_options][:headers]['x-goog-api-version'] = 1
+		options[:object_options][:headers]['x-goog-api-version'] = @options[:api]
 		
 		if options[:object_options][:headers]['x-goog-acl'].nil?
 			options[:object_options][:headers]['x-goog-acl'] = case options[:object_options][:permissions]
@@ -283,12 +287,16 @@ DATA
 		#
 		# Encode the request signature
 		#
-		signature = Base64.encode64(OpenSSL::HMAC.digest(OpenSSL::Digest::Digest.new('sha1'), @options[:secret_key], signature)).chomp!
+		if @options[:api] == 1
+			signature = Base64.encode64(OpenSSL::HMAC.digest(OpenSSL::Digest::Digest.new('sha1'), @options[:secret_key], signature)).gsub("\n","")
+			options[:object_options][:headers]['Authorization'] = "GOOG1 #{@options[:access_id]}:#{signature}"
+		else
+			signature = Base64.encode64(@options[:secret_key].sign(OpenSSL::Digest::SHA256.new, signature)).gsub("\n","")
+		end
 		
 		
 		url += signed_params.present? ? '&' : '?'
 		url = "#{options[:object_options][:protocol]}://#{options[:bucket_name]}.storage.googleapis.com#{url}#{other_params}GoogleAccessId=#{@options[:access_id]}&Expires=#{options[:object_options][:expires]}&Signature=#{CGI::escape(signature)}"
-		options[:object_options][:headers]['Authorization'] = "GOOG1 #{@options[:access_id]}:#{signature}"
 		
 		
 		#
