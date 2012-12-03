@@ -17,8 +17,8 @@ class Condo::Strata::GoogleCloudStorage
 			:location => :na,				# US or Europe, set at bucket creation time
 			:fog => {
 				:provider => 'Google',
-				:google_storage_access_key_id => options[:access_id],
-				:google_storage_secret_access_key => options[:secret_key]
+				:google_storage_access_key_id => options[:fog_access_id] || options[:access_id],
+				:google_storage_secret_access_key => options[:fog_secret_key] || options[:secret_key]
 			},
 			:api => 1
 		}.merge!(options)
