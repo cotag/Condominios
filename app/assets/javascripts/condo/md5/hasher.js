@@ -2,7 +2,17 @@
 
 var CondoMD5Hasher = (function(global) {
 	
-	var part_size = 1048576;	// This is the amount of the file we read into memory as we are building the hash (1mb)
+	var part_size = 1048576,	// This is the amount of the file we read into memory as we are building the hash (1mb)
+		async = true;
+	
+	//
+	// Firefox does not have FileReader in webworkers? WTF
+	//	See issue #2
+	//
+	if (!!!global.FileReader) {
+		async = false;
+		global.FileReader = global.FileReaderSync;
+	}
 
 	return function(callback) {
 		
@@ -14,7 +24,7 @@ var CondoMD5Hasher = (function(global) {
 			
 			var current_part,
 				md5 = new global.SparkMD5(),
-				reader = new FileReader(),
+				reader = new global.FileReader(),
 				part_number = 0,
 				length = Math.ceil(blob.size / part_size),
 				fail = function() {
@@ -49,13 +59,30 @@ var CondoMD5Hasher = (function(global) {
 						current_part = blob;
 					}
 					
-					reader.readAsArrayBuffer(current_part);
+					if(async)
+						reader.readAsArrayBuffer(current_part);
+					else {
+						setTimeout(function() {
+							try {
+								hashData({
+									target: {
+										result: reader.readAsArrayBuffer(current_part)
+									}
+								});
+							} catch (e) {
+								fail();
+							}
+						}, 1);
+					}
+						
 				};
 			
-		
-			reader.onload = hashData;
-			reader.onerror = fail;
-			reader.onabort = fail;
+			
+			if(async) {
+				reader.onload = hashData;
+				reader.onerror = fail;
+				reader.onabort = fail;
+			}
 			
 			
 			processPart();
