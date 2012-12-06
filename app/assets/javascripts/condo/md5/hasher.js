@@ -13,6 +13,13 @@ var CondoMD5Hasher = (function(global) {
 		async = false;
 		global.FileReader = global.FileReaderSync;
 	}
+	
+	//
+	// Some browsers have a vendor prefix on slice
+	//
+	if (!!!Blob.prototype.slice) {
+		Blob.prototype.slice = Blob.prototype.webkitSlice || Blob.prototype.mozSlice;
+	}
 
 	return function(callback) {
 		
