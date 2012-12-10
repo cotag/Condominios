@@ -53,7 +53,8 @@
 
 			completeUpload = function() {
 				api.update().then(function(data) {
-						self.state = COMPLETED;
+					self.progress = self.size;	// Update to 100%
+					self.state = COMPLETED;
 				}, defaultError);
 			},
 			
@@ -182,7 +183,7 @@
 				
 					
 				//
-				// Send a part to amazon
+				// Send a part to rackspace
 				//
 				set_part = function(request, part_info) {
 					request['data'] = part_info.data;

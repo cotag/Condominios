@@ -69,7 +69,8 @@
 
 			completeUpload = function() {
 				api.update().then(function(data) {
-						self.state = COMPLETED;
+					self.progress = self.size;	// Update to 100%
+					self.state = COMPLETED;
 				}, defaultError);
 			},
 			
