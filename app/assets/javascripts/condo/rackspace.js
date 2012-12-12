@@ -156,6 +156,9 @@
 					// Check if we are past the end of the file
 					//
 					if ((part_number - 1) * part_size < file.size) {
+						
+						self.progress = (part_number - 1) * part_size;	// Update the progress
+						
 						build_request(part_number).then(function(result) {
 							if (self.state != UPLOADING)
 								return;						// upload was paused or aborted as we were reading the file
