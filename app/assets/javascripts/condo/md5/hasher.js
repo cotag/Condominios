@@ -30,7 +30,7 @@ var CondoMD5Hasher = (function(global) {
 		this.hash = function(blob) {
 			
 			var current_part,
-				md5 = new global.SparkMD5(),
+				md5 = new global.SparkMD5.ArrayBuffer(),
 				reader = new global.FileReader(),
 				part_number = 0,
 				length = Math.ceil(blob.size / part_size),
@@ -41,7 +41,7 @@ var CondoMD5Hasher = (function(global) {
 					});
 				},
 				hashData = function(e) {
-					md5.appendBinary(e.target.result);
+					md5.append(e.target.result);
 					if(part_number * part_size >= blob.size) {
 						callback({
 							success: true,
@@ -79,7 +79,7 @@ var CondoMD5Hasher = (function(global) {
 							} catch (e) {
 								fail();
 							}
-						}, 1);
+						}, 0);
 					}
 						
 				};
