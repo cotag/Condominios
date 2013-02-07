@@ -33,7 +33,7 @@ This has numerous advantages over traditional Form Data style post uploads too.
 
 
 Support for all major browsers
-* Tested in Firefox 4, Safari 6, Chromes latest stable and IE10 (IE10 on Win7)
+* Tested in Firefox latest stable, Chromes latest stable, Safari 6, Opera 12 and IE10
 
 
 h2. Usage
