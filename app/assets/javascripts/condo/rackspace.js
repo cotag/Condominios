@@ -9,21 +9,12 @@
 * 
 * 	
 * 	References:
-* 		* https://github.com/umdjs/umd
-* 		* https://github.com/addyosmani/jquery-plugin-patterns
 *		* 
 *
 **/
 
-(function (factory) {
-	if (typeof define === 'function' && define.amd) {
-		// AMD
-		define(['jquery', 'condo-uploader'], factory);
-	} else {
-		// Browser globals
-		factory(jQuery);
-	}
-}(function ($) {
+
+(function($, undefined) {
 	'use strict';
 	
 	angular.module('CondoRackspaceProvider', ['CondoUploader', 'CondoAbstractMd5']).run(['$q', 'Condo.Registrar', 'Condo.Md5', function($q, registrar, md5) {
@@ -330,4 +321,4 @@
 		});
 	}]);
 	
-}));
+})(jQuery);

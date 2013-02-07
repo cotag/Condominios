@@ -21,7 +21,7 @@ var CondoMD5Hasher = (function(global) {
 		Blob.prototype.slice = Blob.prototype.webkitSlice || Blob.prototype.mozSlice;
 	}
 
-	return function(callback) {
+	return function(callback, inWorker) {
 		
 		
 		//
@@ -31,15 +31,18 @@ var CondoMD5Hasher = (function(global) {
 			
 			var current_part,
 				md5 = new global.SparkMD5.ArrayBuffer(),
-				reader = new global.FileReader(),
 				part_number = 0,
 				length = Math.ceil(blob.size / part_size),
+				newReader = !!navigator.userAgent.toLowerCase().match(/opera/),		// Yuck! Opera bug (opera can only use a reader once)
+				reader,
+				
 				fail = function() {
 					callback({
 						success: false,
 						result: 'file read failed'
 					});
 				},
+				
 				hashData = function(e) {
 					md5.append(e.target.result);
 					if(part_number * part_size >= blob.size) {
@@ -48,9 +51,11 @@ var CondoMD5Hasher = (function(global) {
 							result: md5.end()
 						});
 					} else {
+						if (newReader) configureReader();
 						processPart();
 					}
 				},
+				
 				processPart = function() {
 					var endbyte = 0;
 					
@@ -82,16 +87,26 @@ var CondoMD5Hasher = (function(global) {
 						}, 0);
 					}
 						
+				},
+				
+				configureReader = function() {
+					reader = new global.FileReader();
+					if(async) {
+						reader.onload = hashData;
+						reader.onerror = fail;
+						reader.onabort = fail;
+					}
 				};
 			
 			
-			if(async) {
-				reader.onload = hashData;
-				reader.onerror = fail;
-				reader.onabort = fail;
+			//
+			// Opera has async readers however they fail silently in webworkers
+			//
+			if (newReader && inWorker) {
+				async = false;
 			}
 			
-			
+			configureReader();
 			processPart();
 		};
 	};

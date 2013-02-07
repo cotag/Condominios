@@ -9,26 +9,17 @@
 * 
 * 	
 * 	References:
-* 		* https://github.com/umdjs/umd
-* 		* https://github.com/addyosmani/jquery-plugin-patterns
 *		* 
 *
 **/
 
-(function (factory) {
-	if (typeof define === 'function' && define.amd) {
-		// AMD
-		define('condo-broadcaster', factory);
-	} else {
-		// Browser globals
-		factory();
-	}
-}(function (undefined) {
+
+(function(undefined) {
 	'use strict';
 	
 	
 	//
-	// 
+	// TODO:: Replace this with jQuery call backs
 	//
 	
 	
@@ -57,4 +48,4 @@
 		return eventBroadcaster;
 	}]);
 	
-}));
+})();

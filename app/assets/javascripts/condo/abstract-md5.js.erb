@@ -1,12 +1,4 @@
-(function (factory) {
-	if (typeof define === 'function' && define.amd) {
-		// AMD
-		define('condo-abstract-md5', ['jquery', 'condo-broadcaster'], factory);
-	} else {
-		// Browser global
-		factory(jQuery);
-	}
-}(function ($, uploads, undefined) {
+(function($, undefined) {
 	'use strict';
 	
 	angular.module('CondoAbstractMd5', ['CondoBroadcaster'])
@@ -89,5 +81,5 @@
 			}
 		};
 	}]);
-}));
+})(jQuery);
 

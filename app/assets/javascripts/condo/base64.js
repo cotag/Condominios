@@ -47,15 +47,7 @@
  */
 
 
-(function (factory) {
-	if (typeof define === 'function' && define.amd) {
-		// AMD
-		define('base64', factory);
-	} else {
-		// Browser globals
-		window.base64 = factory();
-	}
-}(function (undefined) {
+window.base64 = (function(undefined) {
 	'use strict';
 	
 	var base64 = {};
@@ -189,4 +181,4 @@
 	}
 	
 	return base64;
-}));
+})();

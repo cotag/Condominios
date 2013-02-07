@@ -19,5 +19,5 @@ function CondoHashWorkerEmulator(callback) {
 	}
 	
 	// Create an instance of downloader.
-	var hasher = new CondoMD5Hasher(messageEvtEmulator);
+	var hasher = new CondoMD5Hasher(messageEvtEmulator, false);
 }
