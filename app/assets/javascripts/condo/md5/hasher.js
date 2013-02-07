@@ -3,7 +3,9 @@
 var CondoMD5Hasher = (function(global) {
 	
 	var part_size = 1048576,	// This is the amount of the file we read into memory as we are building the hash (1mb)
-		async = true;
+		async = true,
+		newReader = !!navigator.userAgent.toLowerCase().match(/opera/);	// Opera bug (opera can only use a reader once)
+		
 	
 	//
 	// Firefox does not have FileReader in webworkers? WTF
@@ -25,6 +27,16 @@ var CondoMD5Hasher = (function(global) {
 		
 		
 		//
+		// Opera claims to have async readers in webworkers however it is actually just
+		//	a synchronous reader in disguise
+		//
+		if (newReader && inWorker) {
+			async = false;
+			global.FileReader = global.FileReaderSync || global.FileReader;
+		}
+		
+		
+		//
 		// responds with: {success: true|false, result: <Object>}
 		//
 		this.hash = function(blob) {
@@ -33,7 +45,6 @@ var CondoMD5Hasher = (function(global) {
 				md5 = new global.SparkMD5.ArrayBuffer(),
 				part_number = 0,
 				length = Math.ceil(blob.size / part_size),
-				newReader = !!navigator.userAgent.toLowerCase().match(/opera/),		// Yuck! Opera bug (opera can only use a reader once)
 				reader,
 				
 				fail = function() {
@@ -98,13 +109,6 @@ var CondoMD5Hasher = (function(global) {
 					}
 				};
 			
-			
-			//
-			// Opera has async readers however they fail silently in webworkers
-			//
-			if (newReader && inWorker) {
-				async = false;
-			}
 			
 			configureReader();
 			processPart();
