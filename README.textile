@@ -75,7 +75,7 @@ See the "example application":https://github.com/cotag/condo_example which imple
 If you are using "Condo Interface":https://github.com/cotag/condo_interface then you may want to do the following:
 # Create an index for your controller @def index; end@
 # Create an index.html.erb in your view with:
-# Make sure your AngularJS app includes: @angular.module('YourApp', ['CondoUploader', 'CondoInterface']);@
+# Make sure your AngularJS app includes: @angular.module('YourApp', ['Condo', 'CondoInterface']);@
 #* @<div data-ng-app="YourApp"><%= render "condo_interface/upload" %></div>@
 
 Alternative you could load an AngularJS template linking to <%= asset_path('templates/_upload.html') %>
@@ -84,7 +84,7 @@ Alternative you could load an AngularJS template linking to <%= asset_path('temp
 h3. Defining Static Residencies
 
 If you are creating an application that only communicates with one or two storage providers or accounts then this is the simplest way to get started.
-In an initialiser (<-- I'm Australian) do the following:
+In an initialiser do the following:
 
 <pre><code class="ruby">
 Condo::Configuration.add_residence(:AmazonS3, {
