@@ -50,6 +50,19 @@ class Condo::Strata::RackspaceCloudFiles
 	end
 	
 	
+	def allow_cors(domains = 'http://localhost:3000', options_age = 60, headers = 'ETag, Content-Type, X-Object-Manifest, Content-Md5, Content-Type, accept, origin')
+		fog_connection.request(
+			:expects  => [201, 202, 204],
+			:method   => 'POST',
+			:headers  => {
+				'X-Container-Meta-Access-Control-Allow-Origin' => domains,
+				'X-Container-Meta-Access-Control-Max-Age' => options_age,
+				'X-Container-Meta-Access-Control-Allow-Headers' => headers
+			}
+		)
+	end
+	
+	
 	#
 	# Create a signed URL for accessing a private file
 	#
