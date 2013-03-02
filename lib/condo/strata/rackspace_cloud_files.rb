@@ -10,7 +10,7 @@ class Condo::Strata::RackspaceCloudFiles
 	def initialize(options)
 		@options = {
 			:name => :RackspaceCloudFiles,
-			:location => :na,			# dallas or chicago	- this is set at bucket creation time
+			:location => :dfw,			# dallas or chicago	- this is set at bucket creation time
 			:fog => {
 				:provider => 'Rackspace',
 				:rackspace_username => options[:username],
@@ -20,8 +20,17 @@ class Condo::Strata::RackspaceCloudFiles
 		}.merge!(options)
 		
 		
-		raise ArgumentError, 'Rackspace Username missing' if @options[:username].nil?
-		raise ArgumentError, 'Rackspace Secret Key missing' if @options[:secret_key].nil?
+		@options[:location] = case @options[:location]
+			when :dfw, :dallas, :DFW then 'storage101.dfw1.clouddrive.com'
+			when :ord, :chicago, :ORD then 'storage101.ord1.clouddrive.com'
+		end
+		
+		
+		#raise ArgumentError, 'Rackspace Username missing' if @options[:username].nil?
+		#raise ArgumentError, 'Rackspace Secret Key missing' if @options[:secret_key].nil?
+		
+		raise ArgumentError, 'Rackspace Storage URL missing' if @options[:storage_url].nil?
+		raise ArgumentError, 'Rackspace Temp URL Key missing' if @options[:temp_url_key].nil?
 		
 		
 		@options[:location] = @options[:location].to_sym
@@ -41,7 +50,7 @@ class Condo::Strata::RackspaceCloudFiles
 	#
 	# Here for convenience 
 	#
-	def set_metatdata_key(key)
+	def set_metadata_key(key)
 		fog_connection.request(
 			:expects  => [201, 202, 204],
 			:method   => 'POST',
@@ -50,7 +59,7 @@ class Condo::Strata::RackspaceCloudFiles
 	end
 	
 	
-	def allow_cors(domains = 'http://localhost:3000', options_age = 60, headers = 'ETag, Content-Type, X-Object-Manifest, Content-Md5, Content-Type, accept, origin')
+	def allow_cors(domains = 'http://localhost:3000', options_age = 60, headers = 'etag, x-object-manifest, content-md5, content-type, accept, origin, x-requested-with')
 		fog_connection.request(
 			:expects  => [201, 202, 204],
 			:method   => 'POST',
@@ -205,7 +214,7 @@ class Condo::Strata::RackspaceCloudFiles
 		# Build base URL
 		#
 		options[:object_options][:expires] = options[:object_options][:expires].utc.to_i
-		url = "/v1/#{options[:username]}/#{CGI::escape options[:bucket_name]}/#{CGI::escape options[:object_key]}"
+		url = "/v1/#{options[:storage_url]}/#{CGI::escape options[:bucket_name]}/#{CGI::escape options[:object_key]}"
 		
 		
 		
@@ -218,7 +227,7 @@ class Condo::Strata::RackspaceCloudFiles
 		#
 		# Encode the request signature
 		#
-		signature = OpenSSL::HMAC.hexdigest('sha1', @options[:secret_key], signature)
+		signature = OpenSSL::HMAC.hexdigest('sha1', @options[:temp_url_key], signature)
 		
 		
 		#
@@ -226,7 +235,7 @@ class Condo::Strata::RackspaceCloudFiles
 		#
 		return {
 			:verb => options[:object_options][:verb].to_s.upcase,
-			:url => "https://storage.clouddrive.com#{url}?temp_url_sig=#{signature}&temp_url_expires=#{options[:object_options][:expires]}",
+			:url => "https://#{@options[:location]}#{url}?temp_url_sig=#{signature}&temp_url_expires=#{options[:object_options][:expires]}",
 			:headers => options[:object_options][:headers]
 		}
 	end
