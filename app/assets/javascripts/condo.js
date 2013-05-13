@@ -1,6 +1,9 @@
-//= require condo/abstract-md5
-//= require condo/base64
-//= require condo/broadcaster
-//= require condo/uploader
+//= require core/core
+//= require core/services/1-safe-apply
+//= require core/services/2-messaging
+//= require condo/condo
+//= require condo/services/base64
+//= require condo/services/broadcaster
+//= require condo/services/abstract-md5
+//= require condo/services/uploader
 //= require condo/config
-//= require condo/controller

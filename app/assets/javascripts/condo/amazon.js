@@ -14,10 +14,12 @@
 **/
 
 
-(function($, base64, undefined) {
+(function(angular, base64, undefined) {
 	'use strict';
 	
-	angular.module('CondoAmazonProvider', ['CondoUploader', 'CondoAbstractMd5']).run(['$q', 'Condo.Registrar', 'Condo.Md5', function($q, registrar, md5) {
+	angular.module('Condo').
+	
+	factory('Condo.Amazon', ['$q', 'Condo.Md5', function($q, md5) {
 		var PENDING = 0,
 			STARTED = 1,
 			PAUSED = 2,
@@ -387,15 +389,15 @@
 		}; // END AMAZON
 		
 		
-		//
-		// Register the residence with the API
-		//	Dependency injection succeeded
-		//
-		registrar.register('AmazonS3', {
+		return {
 			new_upload: function(api, file) {
 				return new Amazon(api, file);
 			}
-		});
+		};
+	}]).
+
+	config(['Condo.ApiProvider', function (ApiProvider) {
+		ApiProvider.register('AmazonS3', 'Condo.Amazon');
 	}]);
 	
-})(jQuery, window.base64);
+})(angular, window.base64);

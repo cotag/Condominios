@@ -59,7 +59,7 @@ class Condo::Strata::RackspaceCloudFiles
 	end
 	
 	
-	def allow_cors(domains = 'http://localhost:3000', options_age = 60, headers = 'etag, x-object-manifest, content-md5, content-type, accept, origin, x-requested-with')
+	def allow_cors(domains = 'http://localhost:3000', options_age = 10, headers = 'etag, x-object-manifest, content-md5, content-type, accept, origin, x-requested-with')
 		fog_connection.request(
 			:expects  => [201, 202, 204],
 			:method   => 'POST',

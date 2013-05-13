@@ -15,13 +15,13 @@
 **/
 
 
-(function ($, undefined) {
+(function (angular, undefined) {
 	'use strict';
 	
 	//
 	// Create a controller for managing the upload states
 	//
-	angular.module('Condo', ['CondoBroadcaster', 'CondoUploader', 'CondoConfig']).
+	angular.module('Condo', ['Core']).
 		controller('Condo.Controller', ['$scope', 'Condo.Api', 'Condo.Broadcast', 'Condo.Config', function($scope, api, broadcaster, config) {
 		
 			$scope.uploads = [];
@@ -53,7 +53,7 @@
 					// check file size is acceptable
 					//
 					if(!config.file_checker(file) || (config.size_limit != undefined && file.size > config.size_limit)) {
-						broadcaster.broadcast('coNotice', {
+						broadcaster.publish('coNotice', {
 							type: 'warn',
 							number: 0,
 							file: file
@@ -79,7 +79,7 @@
 						//
 						// broadcast this so it can be handled by a directive
 						//
-						broadcaster.broadcast('coNotice', failure);
+						broadcaster.publish('coNotice', failure);
 					});
 				}
 			};
@@ -181,4 +181,4 @@
 			
 		}]);
 	
-})(jQuery);
+})(angular);

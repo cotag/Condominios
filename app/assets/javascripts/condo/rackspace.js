@@ -14,10 +14,12 @@
 **/
 
 
-(function($, undefined) {
+(function(angular, undefined) {
 	'use strict';
 	
-	angular.module('CondoRackspaceProvider', ['CondoUploader', 'CondoAbstractMd5']).run(['$q', 'Condo.Registrar', 'Condo.Md5', function($q, registrar, md5) {
+	angular.module('Condo').
+
+	factory('Condo.Rackspace', ['$q', 'Condo.Md5', function($q, md5) {
 		var PENDING = 0,
 			STARTED = 1,
 			PAUSED = 2,
@@ -310,15 +312,15 @@
 		}; // END RACKSPACE
 		
 		
-		//
-		// Register the residence with the API
-		//	Dependency injection succeeded
-		//
-		registrar.register('RackspaceCloudFiles', {
+		return {
 			new_upload: function(api, file) {
 				return new Rackspace(api, file);
 			}
-		});
+		};
+	}]).
+
+	config(['Condo.ApiProvider', function (ApiProvider) {
+		ApiProvider.register('RackspaceCloudFiles', 'Condo.Rackspace');
 	}]);
 	
-})(jQuery);
+})(angular);

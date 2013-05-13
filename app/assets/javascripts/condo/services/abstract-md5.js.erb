@@ -1,8 +1,9 @@
-(function($, undefined) {
+(function(angular, undefined) {
 	'use strict';
 	
-	angular.module('CondoAbstractMd5', ['CondoBroadcaster'])
-		.factory('Condo.Md5', ['$rootScope', '$q', 'Condo.Broadcast', function($rootScope, $q, broadcaster) {
+	angular.module('Condo').
+	
+	factory('Condo.Md5', ['$rootScope', '$q', 'Condo.Broadcast', function($rootScope, $q, broadcaster) {
 		
 		var hasher,
 			queue = [],
@@ -43,7 +44,7 @@
 			hasher.onmessage = recievedMessage;
 			hasher.onerror = function(e) {
 				ready = false;
-				broadcaster.broadcast('coNotice', {
+				broadcaster.publish('coNotice', {
 					type: 'error',
 					number: 1
 				});
@@ -55,7 +56,7 @@
 				ready = true;
 				processNext();	// It is possible
 			}).fail(function(jqxhr, settings, exception) {
-				broadcaster.broadcast('coNotice', {
+				broadcaster.publish('coNotice', {
 					type: 'error',
 					number: 1
 				});
@@ -81,5 +82,5 @@
 			}
 		};
 	}]);
-})(jQuery);
+})(angular);
 

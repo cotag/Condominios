@@ -15,14 +15,14 @@
 **/
 
 
-(function ($, undefined) {
+(function (angular, undefined) {
 	'use strict';
 	
 	
 	//
 	// Create a provider for defining the configuration
 	//
-	angular.module('CondoConfig', []).
+	angular.module('Condo').
 		provider('Condo.Config', function() {
 			
 			//
@@ -66,4 +66,4 @@
 			};
 		});
 	
-})(jQuery);
+})(angular);
