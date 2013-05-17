@@ -63,6 +63,8 @@ class Condo::Strata::GoogleCloudStorage
       <ResponseHeader>accept</ResponseHeader>
       <ResponseHeader>x-goog-api-version</ResponseHeader>
       <ResponseHeader>x-goog-resumable</ResponseHeader>
+      <ResponseHeader>content-range</ResponseHeader>
+      <ResponseHeader>x-requested-with</ResponseHeader>
     </ResponseHeaders>
     <MaxAgeSec>1800</MaxAgeSec>
   </Cors>
@@ -121,17 +123,14 @@ DATA
 		options[:object_options] = {
 			:permissions => :private,
 			:expires => 5.minutes.from_now,
-			:verb => :put,				# This will be a post for resumable uploads
+			:verb => :put,				# put for direct uploads
 			:headers => {},
 			:parameters => {},
 			:protocol => :https
 		}.merge!(options[:object_options] || {})
 		options.merge!(@options)
-		
-		
-		#
-		# Set the access control headers
-		#
+
+
 		options[:object_options][:headers]['x-goog-api-version'] = @options[:api]
 		
 		if options[:object_options][:headers]['x-goog-acl'].nil?
@@ -143,23 +142,13 @@ DATA
 			end
 		end
 		
-		options[:object_options][:headers]['Content-Md5'] = options[:file_id] if options[:file_id].present? && options[:object_options][:headers]['Content-Md5'].nil?
 		options[:object_options][:headers]['Content-Type'] = 'binary/octet-stream' if options[:object_options][:headers]['Content-Type'].nil?
-				
+
 		
 		#
 		# Decide what type of request is being sent
-		# => Currently google only supports direct uploads (no CORS resumables yet!)
 		#
-		return {
-			:signature => sign_request(options),
-			:type => :direct_upload
-		}
-		
-		#
-		# This is what we'll return when resumables work with CORS
-		#
-		if options[:file_size] > 2.megabytes
+		if options[:file_size] > 1.megabytes
 			# Resumables may not support the md5 header at this time - have to compare ETag and fail on the client side
 			options[:object_options][:verb] = :post
 			options[:object_options][:headers]['x-goog-resumable'] = 'start'
@@ -167,36 +156,47 @@ DATA
 				:signature => sign_request(options),
 				:type => :chunked_upload				# triggers resumable
 			}
+		else
+			options[:object_options][:headers]['Content-Md5'] = options[:file_id] if options[:file_id].present? && options[:object_options][:headers]['Content-Md5'].nil?
+			return {
+				:signature => sign_request(options),
+				:type => :direct_upload
+			}
 		end
 	end
 	
 	
 	#
 	# Creates a request for the byte we were up to
-	# => doesn't work with CORS yet
 	#
-	def get_parts(options)
+	def get_parts(options, setting_parts = false)
 		options[:object_options] = {
 			:expires => 5.minutes.from_now,
-			:verb => :put,
+			:verb => :put,				# put for direct uploads
 			:headers => {},
 			:parameters => {},
 			:protocol => :https
-		}.merge!(options[:object_options])
+		}.merge!(options[:object_options] || {})
 		options.merge!(@options)
 		
 		#
 		# Set the upload and request the range of bytes we are after
 		#
+		if setting_parts
+			options[:object_options][:headers]['Content-Md5'] = options[:file_id] if options[:file_id].present? && options[:object_options][:headers]['Content-Md5'].nil?
+			options[:object_options][:headers]['Content-Range'] = "bytes #{options[:part]}-#{options[:file_size] - 1}/#{options[:file_size]}"
+		else
+			options[:object_options][:headers]['Content-Range'] = "bytes */#{options[:file_size]}"
+		end
+		options[:object_options][:headers]['x-goog-api-version'] = @options[:api]
 		options[:object_options][:parameters]['upload_id'] = options[:resumable_id]
-		## This can be set on the client side as it is not part of the signed request
-		#options[:object_options][:headers]['Content-Range'] = "bytes */#{options[:file_size]}"
 		
 		#
 		# provide the signed request
 		#
 		{
-			:type => :parts,
+			:expected => 308,
+			:type => :status,
 			:signature => sign_request(options)
 		}
 	end
@@ -206,8 +206,9 @@ DATA
 	# Returns the requests for uploading parts and completing a resumable upload
 	#
 	def set_part(options)
-		resp = get_parts(options)
-		resp[:type] = :part_upload
+		resp = get_parts(options, true)
+		resp[:type] = :resume_upload
+		resp[:type] = :resume_upload
 		return resp
 	end
 	
@@ -264,7 +265,7 @@ DATA
 		#
 		# Build a request signature
 		#
-		signature = "#{verb}\n#{options[:file_id]}\n#{options[:object_options][:headers]['Content-Type']}\n#{options[:object_options][:expires]}\n"
+		signature = "#{verb}\n#{options[:object_options][:headers]['Content-Md5']}\n#{options[:object_options][:headers]['Content-Type']}\n#{options[:object_options][:expires]}\n"
 		if verb != :GET
 			options[:object_options][:headers]['x-goog-date'] ||= Time.now.utc.httpdate
 		

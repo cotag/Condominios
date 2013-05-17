@@ -1,5 +1,5 @@
 /**
-*	CoTag Condo Amazon S3 Strategy
+*	CoTag Condo Google Strategy
 *	Direct to cloud resumable uploads for Google Cloud Storage
 *	
 *   Copyright (c) 2012 CoTag Media.
@@ -30,13 +30,13 @@
 		
 		
 		hexToBin = function(input) {
-			var result = "";
+			var result = "", i, length;
 			
 			if ((input.length % 2) > 0) {
 				input = '0' + input;
 			}
 			
-			for (var i = 0, length = input.length; i < length; i += 2) {
+			for (i = 0, length = input.length; i < length; i += 2) {
 				result += String.fromCharCode(parseInt(input.slice(i, i + 2), 16));
 			}
 			
@@ -47,7 +47,6 @@
 		GoogleCloudStorage = function (api, file) {
 			var self = this,
 				strategy = null,
-				part_size = 1048576,	// This is the amount of the file we read into memory as we are building the hash (1mb)
 				pausing = false,
 				defaultError = function(reason) {
 					self.error = !pausing;
@@ -61,7 +60,7 @@
 
 
 			completeUpload = function() {
-				api.update().then(function(data) {
+				api.update().then(function() {
 					self.progress = self.size;	// Update to 100%
 					self.state = COMPLETED;
 				}, defaultError);
@@ -71,12 +70,12 @@
 			//
 			// We need to sign our uploads so Google can confirm they are valid for us
 			//
-			build_request = function() {
-				return md5.hash(file).then(function(val) {
+			build_request = function(chunk) {
+				return md5.hash(chunk).then(function(val) {
 					return {
-						data: file,
+						data: chunk,
 						data_id: base64.encode(hexToBin(val))
-					}
+					};
 				}, function(reason){
 					return $q.reject(reason);
 				});
@@ -106,7 +105,7 @@
 				this.resume = function() {
 					self.state = UPLOADING;
 					completeUpload();
-				}
+				};
 				
 				this.pause = function() {
 					api.abort();
@@ -124,7 +123,7 @@
 				data['data'] = file;
 				api.process_request(data, function(progress) {
 					self.progress = progress;
-				}).then(function(result) {
+				}).then(function() {
 					finalising = true;
 		        	$this.resume();				// Resume informs the application that the upload is complete
 				}, function(reason) {
@@ -137,8 +136,99 @@
 			//
 			// Resumable upload strategy--------------------------------------------------
 			//
-			GoogleResumable = function (data, first_chunk) {
+			GoogleResumable = function (data, file_hash, finalising) {
+				var getQueryParams = function(qs) {
+						qs = qs.split("+").join(" ");
+
+						var params = {}, tokens,
+						re = /[?&]?([^=]+)=([^&]*)/g;
+
+						while (tokens = re.exec(qs)) {	// NOTE:: we expect the assignment here
+							params[decodeURIComponent(tokens[1])] = decodeURIComponent(tokens[2]);
+						}
+
+						return params;
+					},
+
+
+					resume_upload = function(request, file_hash, range_start) {
+						request.data = file_hash.data;
+						api.process_request(request, function(progress) {
+							self.progress = range_start + progress;
+						}).then(function(result) {
+							finalising = true;
+							completeUpload();
+						}, function(reason) {
+							defaultError(reason);
+						});
+					};
+
 				
+
+
+				self.state = UPLOADING;
+	
+				this.resume = function() {
+					self.state = UPLOADING;
+					if (finalising == true) {
+						completeUpload();
+					} else {
+						api.create({file_id: file_hash.data_id}).
+						then(function(data) {
+							if(data.type == 'direct_upload') {
+								strategy = new GoogleDirect(data);
+							} else {
+								strategy = new GoogleResumable(data, file_hash);
+							}
+						}, defaultError);
+					}
+				};
+				
+				this.pause = function() {
+					api.abort();
+				};
+
+
+				
+				api.process_request(data).then(function(response) {
+					//
+					// Check if we were grabbing a parts list or creating an upload
+					//
+					if(data.type == 'status') {	// the request was for the byte we are up to
+						// Get the byte we were up to here and update the application
+						var range_start = parseInt(response[1].getResponseHeader('Range').split('-')[1], 10) + 1;
+
+						build_request(file.slice(range_start)).then(function(result) {
+							if (self.state != UPLOADING) {
+								return;						// upload was paused or aborted as we were reading the file
+							}
+							
+							api.edit(range_start, result.data_id).
+								then(function(data) {
+									resume_upload(data, result, range_start);
+								}, defaultError);
+						
+						}, defaultError);	// END BUILD_REQUEST
+					} else {
+						//
+	        			// We've created the upload - we need to update our application with the upload id.
+	        			//	This will also return the request for uploading the file which we've already prepared
+	        			//
+						api.update({
+							resumable_id: getQueryParams(response[1].getResponseHeader('Location').split('?')[1]).upload_id,	// grab the upload_id from the Location header
+							file_id: file_hash.data_id,
+							part: 0						// part for google === the byte we are up to
+						}).then(function(data) {
+							resume_upload(data, file_hash, 0);	// As this is the first upload attempt we want to upload from byte 0
+						}, function(reason) {
+							defaultError(reason);
+							restart();					// Easier to start from the beginning
+						});
+					}
+				}, function(reason) {
+					defaultError(reason);
+					restart();		// We need to get a new request signature
+				});
 			}; // END RESUMABLE
 			
 			
@@ -156,8 +246,9 @@
 			//
 			// Support file slicing
 			//	
-			if (typeof(file.slice) != 'function')
+			if (typeof(file.slice) != 'function') {
 				file.slice = file.webkitSlice || file.mozSlice;
+			}
 			
 			
 			this.start = function(){
@@ -169,9 +260,8 @@
 					this.state = STARTED;
 					strategy = {};			// This function shouldn't be called twice so we need a state
 					
-					build_request().then(function(result) {
-						if (self.state != STARTED)
-							return;						// upload was paused or aborted as we were reading the file
+					build_request(file).then(function(result) {
+						if (self.state != STARTED) { return; } // upload was paused or aborted as we were reading the file
 						
 						api.create({file_id: result.data_id}).
 							then(function(data) {
@@ -202,8 +292,7 @@
 					this.state = PAUSED;
 					restart();
 				}
-				if(this.state == PAUSED)
-					this.message = reason;
+				if(this.state == PAUSED) { this.message = reason; }
 			};
 			
 			this.abort = function(reason) {

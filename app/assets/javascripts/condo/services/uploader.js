@@ -175,14 +175,19 @@
 							processData: false,
 							success: function(response, textStatus, jqXHR) {
 								self.xhr = null;
-								result.resolve(response);
+								result.resolve([response, jqXHR]);
 							},
 							error: function(jqXHR, textStatus, errorThrown) {
-								self.xhr = null;
-								if (!self.aborting)
-									result.reject('upload error');
-								else
-									result.reject(undefined);
+								if(jqXHR.status === signature.expected) {
+									self.xhr = null;
+									result.resolve([errorThrown, jqXHR]);
+								} else {
+									self.xhr = null;
+									if (!self.aborting)
+										result.reject('upload error');
+									else
+										result.reject(undefined);
+								}
 							},
 							complete: function(jqXHR, textStatus) {
 								if(!$rootScope.$$phase) {

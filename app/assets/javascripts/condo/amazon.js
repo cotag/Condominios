@@ -244,7 +244,7 @@
 		        			// NextPartNumberMarker == the final part in the current request
 		        			//	TODO:: if IsTruncated is set then we need to keep getting parts
 		        			//
-		        			response = $(response);
+		        			response = $(response[0]);
 		        			var next = parseInt(response.find('NextPartNumberMarker').eq(0).text()),
 		        				etags = response.find('ETag');
 		        			
@@ -260,7 +260,7 @@
 		        			//	This will also return the request for uploading the first part which we've already prepared
 		        			//
 							api.update({
-								resumable_id: $(response).find('UploadId').eq(0).text(),
+								resumable_id: $(response[0]).find('UploadId').eq(0).text(),
 								file_id: base64.encode(hexToBin(first_chunk.data_id)),
 								part: 1
 							}).then(function(data) {

@@ -82,6 +82,7 @@ module Condo
 							:bucket_name => upload.bucket_name,
 							:object_key => upload.object_key,
 							:object_options => upload.object_options,
+							:file_size => upload.file_size,
 							:resumable_id => upload.resumable_id
 						})
 					else
@@ -150,6 +151,7 @@ module Condo
 						:object_options => upload.object_options,
 						:resumable_id => upload.resumable_id,
 						:part => params[:part],						# part may be called 'finish' for commit signature
+						:file_size => upload.file_size,
 						:file_id => params[:file_id]
 					})
 					
