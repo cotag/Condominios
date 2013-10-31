@@ -182,7 +182,6 @@ module Condo
                 else
                     response = instance_exec current_upload, &@@callbacks[:upload_complete]
                     if response
-                        current_upload.remove_entry
                         render :nothing => true
                     else
                         render :nothing => true, :status => :not_acceptable
@@ -196,8 +195,7 @@ module Condo
                 # Delete the file from the cloud system - the client is not responsible for this
                 #
                 response = instance_exec current_upload, &@@callbacks[:destroy_upload]
-                if !!response
-                    current_upload.remove_entry
+                if response
                     render :nothing => true
                 else
                     render :nothing => true, :status => :not_acceptable
@@ -252,7 +250,7 @@ module Condo
             @@namespace ||= :global
             
             
-            def self.set_callback(name, callback = nil, &block)
+            def self.condo_callback(name, callback = nil, &block)
                 callback ||= block
                 if callback.respond_to?(:call)
                     @@callbacks[name.to_sym] = callback
@@ -262,7 +260,7 @@ module Condo
             end
             
             
-            def self.set_namespace(name)
+            def self.condo_namespace(name)
                 @@namespace = name.to_sym
             end
         
