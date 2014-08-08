@@ -24,7 +24,7 @@ module Condo
                 }
                 @upload[:file_path] = @@callbacks[:sanitize_filepath].call(permitted[:file_path]) if permitted[:file_path]
                 
-                valid, errors = @@callbacks[:pre_validation].call @upload       # Ensure the upload request is valid before uploading
+                valid, errors = instance_exec(@upload, @@callbacks[:pre_validation])       # Ensure the upload request is valid before uploading
                 
                 if !!valid
                     set_residence(nil, {:resident => resident, :params => @upload}) if condo_config.dynamic_provider_present?(@@namespace)
@@ -97,7 +97,7 @@ module Condo
                     #
                     # Create a new upload
                     #
-                    valid, errors = @@callbacks[:pre_validation].call @upload               # Ensure the upload request is valid before uploading
+                    valid, errors = instance_exec(@upload, &@@callbacks[:pre_validation])               # Ensure the upload request is valid before uploading
                     
                     
                     if valid
