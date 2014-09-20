@@ -59,7 +59,7 @@ class Condo::Strata::RackspaceCloudFiles
 	end
 	
 	
-	def allow_cors(domains = 'http://localhost:3000', options_age = 10, headers = 'etag, x-object-manifest, content-md5, content-type, accept, origin, x-requested-with')
+	def allow_cors(domains = 'http://localhost:3000', options_age = 10, headers = 'etag, x-object-manifest, content-type, accept, origin, x-requested-with')
 		fog_connection.request(
 			:expects  => [201, 202, 204],
 			:method   => 'POST',
@@ -166,7 +166,7 @@ class Condo::Strata::RackspaceCloudFiles
 			#
 			# Send the part upload request
 			#
-			options[:object_options][:headers]['Content-Md5'] = options[:file_id] if options[:file_id].present? && options[:object_options][:headers]['Content-Md5'].nil?
+			options[:object_options][:headers]['ETag'] = options[:file_id] if options[:file_id].present? && options[:object_options][:headers]['ETag'].nil?
 			options[:object_options][:headers]['Content-Type'] = 'binary/octet-stream' if options[:object_options][:headers]['Content-Type'].nil?
 			options[:object_key] = options[:object_key] + '_p' + options[:part]
 			request[:type] = :part_upload
