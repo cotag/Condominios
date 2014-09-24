@@ -19,10 +19,13 @@ class Condo::Strata::RackspaceCloudFiles
 			}
 		}.merge!(options)
 		
-		
-		@options[:location] = case @options[:location]
-			when :dfw, :dallas, :DFW then 'storage101.dfw1.clouddrive.com'
-			when :ord, :chicago, :ORD then 'storage101.ord1.clouddrive.com'
+		if options[:location]
+			@options[:location] = options[:location]
+		else
+			@options[:location] = case @options[:location]
+				when :dfw, :dallas, :DFW then 'storage101.dfw1.clouddrive.com'
+				when :ord, :chicago, :ORD then 'storage101.ord1.clouddrive.com'
+			end
 		end
 		
 		
