@@ -235,7 +235,7 @@ class Condo::Strata::RackspaceCloudFiles
 		#
 		return {
 			:verb => options[:object_options][:verb].to_s.upcase,
-			:url => "https://#{@options[:location]}#{url}?temp_url_sig=#{signature}&temp_url_expires=#{options[:object_options][:expires]}",
+			:url => "#{options[:http] ? 'http' : 'https'}://#{@options[:location]}#{url}?temp_url_sig=#{signature}&temp_url_expires=#{options[:object_options][:expires]}",
 			:headers => options[:object_options][:headers]
 		}
 	end
