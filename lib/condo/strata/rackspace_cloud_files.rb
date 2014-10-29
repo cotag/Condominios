@@ -15,6 +15,8 @@ class Condo::Strata::RackspaceCloudFiles
 				:provider => 'Rackspace',
 				:rackspace_username => options[:username],
 				:rackspace_api_key => options[:secret_key],
+				:rackspace_cdn_url => options[:rackspace_cdn_url],
+				:rackspace_temp_url_key => options[:temp_url_key],
 				:rackspace_auth_url => options[:auth_url] || 'https://identity.api.rackspacecloud.com/v2.0' # is US and UK is 'lon.auth.api.rackspacecloud.com'
 			}
 		}.merge!(options)
