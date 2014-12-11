@@ -118,7 +118,7 @@ class Condo::Strata::RackspaceCloudFiles
 		request = {}
 		if options[:file_size] > 2097152	# 2 mb (minimum chunk size)
 			
-			options[:object_key] = options[:object_key] + '_p1'		# Append the part number
+			options[:object_key] = options[:object_key] + '_p0001'		# Append the part number
 			request[:type] = :chunked_upload
 		else
 			
@@ -170,7 +170,7 @@ class Condo::Strata::RackspaceCloudFiles
 			#
 			options[:object_options][:headers]['ETag'] = options[:file_id] if options[:file_id].present? && options[:object_options][:headers]['ETag'].nil?
 			options[:object_options][:headers]['Content-Type'] = 'binary/octet-stream' if options[:object_options][:headers]['Content-Type'].nil?
-			options[:object_key] = options[:object_key] + '_p' + options[:part]
+			options[:object_key] = options[:object_key] + ("_p%04d" % options[:part])
 			request[:type] = :part_upload
 		end
 		
