@@ -120,7 +120,7 @@ class Condo::Strata::RackspaceCloudFiles
 		request = {}
 		if options[:file_size] > MIN_CHUNK_SIZE	# 2 mb (minimum chunk size)
 			
-			options[:object_key] = options[:object_key] +  + gen_part_ext(options[:file_size], 1)		# Append the part number
+			options[:object_key] = options[:object_key] + gen_part_ext(options[:file_size], 1)		# Append the part number
 			request[:type] = :chunked_upload
 		else
 			
