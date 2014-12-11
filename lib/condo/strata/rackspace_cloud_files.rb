@@ -7,6 +7,8 @@ module Condo::Strata; end
 
 class Condo::Strata::RackspaceCloudFiles
 	
+	MIN_CHUNK_SIZE = 2097152
+	
 	def initialize(options)
 		@options = {
 			:name => :RackspaceCloudFiles,
@@ -116,9 +118,9 @@ class Condo::Strata::RackspaceCloudFiles
 		# Decide what type of request is being sent
 		#
 		request = {}
-		if options[:file_size] > 2097152	# 2 mb (minimum chunk size)
+		if options[:file_size] > MIN_CHUNK_SIZE	# 2 mb (minimum chunk size)
 			
-			options[:object_key] = options[:object_key] + '_p0001'		# Append the part number
+			options[:object_key] = options[:object_key] +  + gen_part_ext(options[:file_size], 1)		# Append the part number
 			request[:type] = :chunked_upload
 		else
 			
@@ -170,7 +172,7 @@ class Condo::Strata::RackspaceCloudFiles
 			#
 			options[:object_options][:headers]['ETag'] = options[:file_id] if options[:file_id].present? && options[:object_options][:headers]['ETag'].nil?
 			options[:object_options][:headers]['Content-Type'] = 'binary/octet-stream' if options[:object_options][:headers]['Content-Type'].nil?
-			options[:object_key] = options[:object_key] + ("_p%04d" % options[:part])
+			options[:object_key] = options[:object_key] + gen_part_ext(options[:file_size], options[:part])
 			request[:type] = :part_upload
 		end
 		
@@ -240,6 +242,13 @@ class Condo::Strata::RackspaceCloudFiles
 			:url => "#{options[:http_only] ? 'http' : 'https'}://#{@options[:location]}#{url}?temp_url_sig=#{signature}&temp_url_expires=#{options[:object_options][:expires]}",
 			:headers => options[:object_options][:headers]
 		}
+	end
+	
+	
+	def gen_part_ext(fileSize, partNumber)
+		rval = (fileSize.to_f / MIN_CHUNK_SIZE).ceil.to_s.length
+		partPad = partNumber.to_s.rjust(rval, '0')
+		"_p#{partPad}"
 	end
 	
 	
