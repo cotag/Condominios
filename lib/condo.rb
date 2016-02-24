@@ -27,18 +27,18 @@ module Condo
                 valid, errors = instance_exec(@upload, &@@callbacks[:pre_validation])       # Ensure the upload request is valid before uploading
                 
                 if !!valid
-                    set_residence(nil, {:resident => resident, :params => @upload}) if condo_config.dynamic_provider_present?(@@namespace)
+                    set_residence(nil, {resident: resident, params: @upload}) if condo_config.dynamic_provider_present?(@@namespace)
                     residence = current_residence
                     
-                    render :json => {:residence => residence.name}
+                    render json: {residence: residence.name}
                     
                 elsif errors.is_a? Hash
-                    render :json => errors, :status => :not_acceptable
+                    render json: errors, status: :not_acceptable
                 else
-                    render :nothing => true, :status => :not_acceptable
+                    render nothing: true, status: :not_acceptable
                 end
             end
-            
+
             def create
                 #
                 # Check for existing upload or create a new one
@@ -66,8 +66,8 @@ module Condo
                 
                 if upload.present?
                     residence = set_residence(upload.provider_name, {
-                        :location => upload.provider_location,
-                        :upload => upload
+                        location: upload.provider_location,
+                        upload: upload
                     })
                     
                     #
@@ -76,23 +76,29 @@ module Condo
                     request = nil
                     if upload.resumable_id.present? && upload.resumable
                         request = residence.get_parts({
-                            :bucket_name => upload.bucket_name,
-                            :object_key => upload.object_key,
-                            :object_options => upload.object_options,
-                            :file_size => upload.file_size,
-                            :resumable_id => upload.resumable_id
+                            bucket_name: upload.bucket_name,
+                            object_key: upload.object_key,
+                            object_options: upload.object_options,
+                            file_size: upload.file_size,
+                            resumable_id: upload.resumable_id
                         })
+
+                        request[:part_list] = upload.part_list || []
+                        request[:part_data] = upload.part_data if upload.part_data
                     else
                         request = residence.new_upload({
-                            :bucket_name => upload.bucket_name,
-                            :object_key => upload.object_key,
-                            :object_options => upload.object_options,
-                            :file_size => upload.file_size,
-                            :file_id => upload.file_id
+                            bucket_name: upload.bucket_name,
+                            object_key: upload.object_key,
+                            object_options: upload.object_options,
+                            file_size: upload.file_size,
+                            file_id: upload.file_id
                         })
                     end
                     
-                    render :json => request.merge(:upload_id => upload.id, :residence => residence.name)
+                    render json: request.merge!({
+                        upload_id: upload.id,
+                        residence: residence.name
+                    })
                 else
                     #
                     # Create a new upload
@@ -101,7 +107,7 @@ module Condo
                     
                     
                     if valid
-                        set_residence(nil, {:resident => resident, :params => @upload}) if condo_config.dynamic_provider_present?(@@namespace)
+                        set_residence(nil, {resident: resident, params: @upload}) if condo_config.dynamic_provider_present?(@@namespace)
                         residence = current_residence
                         
                         #
@@ -119,49 +125,47 @@ module Condo
                         # Save a reference to this upload in the database
                         # => This should throw an error on failure
                         #
-                        upload = condo_backend.add_entry(@upload.merge!({:provider_name => residence.name, :provider_location => residence.location, :resumable => resumable}))
-                        render :json => request.merge!(:upload_id => upload.id, :residence => residence.name)
+                        upload = condo_backend.add_entry(@upload.merge!({provider_name: residence.name, provider_location: residence.location, resumable: resumable}))
+                        render json: request.merge!(upload_id: upload.id, residence: residence.name)
                         
                     elsif errors.is_a? Hash
-                        render :json => errors, :status => :not_acceptable
+                        render json: errors, status: :not_acceptable
                     else
-                        render :nothing => true, :status => :not_acceptable
+                        render nothing: true, status: :not_acceptable
                     end
                 end
             end
             
             
-            #
             # Authorization check all of these
-            #
             def edit
-                #
                 # Get the signature for parts + final commit
-                #
                 upload = current_upload
+
                 params.require(:part)
                 safe_params = params.permit(:part, :file_id)
-                
+
                 if upload.resumable_id.present? && upload.resumable
-                    residence = set_residence(upload.provider_name, {:location => upload.provider_location, :upload => upload})
+                    residence = set_residence(upload.provider_name, {location: upload.provider_location, upload: upload})
                     
                     request = residence.set_part({
-                        :bucket_name => upload.bucket_name,
-                        :object_key => upload.object_key,
-                        :object_options => upload.object_options,
-                        :resumable_id => upload.resumable_id,
-                        :part => safe_params[:part],                        # part may be called 'finish' for commit signature
-                        :file_size => upload.file_size,
-                        :file_id => safe_params[:file_id]
+                        bucket_name: upload.bucket_name,
+                        object_key: upload.object_key,
+                        object_options: upload.object_options,
+                        resumable_id: upload.resumable_id,
+                        # part may be called 'finish' for commit signature
+                        part: safe_params[:part],
+                        file_size: upload.file_size,
+                        file_id: safe_params[:file_id]
                     })
-                    
-                    render :json => request.merge!(:upload_id => upload.id)
+
+                    render json: request.merge!(upload_id: upload.id)
                 else
-                    render :nothing => true, :status => :not_acceptable
+                    render nothing: true, status: :not_acceptable
                 end
             end
-            
-            
+
+
             def update
                 #
                 # Provide the upload id after creating a resumable upload (may not be completed)
@@ -171,20 +175,39 @@ module Condo
                 #
                 # Complete an upload
                 #
+                upload = current_upload
+
                 if params[:resumable_id]
-                    upload = current_upload
                     if upload.resumable
-                        @current_upload = upload.update_entry :resumable_id => params.permit(:resumable_id)[:resumable_id]
+                        @current_upload = upload.update_entry resumable_id: params.permit(:resumable_id)[:resumable_id]
                         edit
                     else
-                        render :nothing => true, :status => :not_acceptable
+                        render nothing: true, status: :not_acceptable
+                    end
+                elsif params[:part_list]
+                    list = params.permit(:part_data, part_list: [])
+                    upload.part_list = params[:part_list] || []
+
+                    # We incrementally update this as it might otherwise contain
+                    # sum(1 -> 10,000) parts over the time of the upload
+                    # (as is the case with the largest file amazon supports)
+                    if params[:part_data]
+                        upload.part_data ||= {}
+                        upload.part_data = upload.part_data.merge(params[:part_data])
+                    end
+                    upload.save!
+
+                    if params[:part_update]
+                        render nothing: true
+                    else
+                        edit
                     end
                 else
-                    response = instance_exec current_upload, &@@callbacks[:upload_complete]
+                    response = instance_exec upload, &@@callbacks[:upload_complete]
                     if response
-                        render :nothing => true
+                        render nothing: true
                     else
-                        render :nothing => true, :status => :not_acceptable
+                        render nothing: true, status: :not_acceptable
                     end
                 end
             end
@@ -196,9 +219,9 @@ module Condo
                 #
                 response = instance_exec current_upload, &@@callbacks[:destroy_upload]
                 if response
-                    render :nothing => true
+                    render nothing: true
                 else
-                    render :nothing => true, :status => :not_acceptable
+                    render nothing: true, status: :not_acceptable
                 end
             end
             
@@ -223,13 +246,14 @@ module Condo
                 return @current_upload if @current_upload
 
                 safe_params = params.permit(:upload_id, :id)
-                @current_upload = condo_backend.check_exists({:user_id => current_resident, :upload_id => (safe_params[:upload_id] || safe_params[:id])}).tap do |object|    #current_residence.name && current_residence.location && resident.id.exists?
+                @current_upload = condo_backend.check_exists({user_id: current_resident, upload_id: (safe_params[:upload_id] || safe_params[:id])}).tap do |object|    #current_residence.name && current_residence.location && resident.id.exists?
                     raise Condo::Errors::NotYourPlace unless object.present?
                 end
             end
             
             def current_resident
-                @current_resident ||= (instance_eval &@@callbacks[:resident_id]).tap do |object|    # instance_exec for params
+                # instance_exec for params
+                @current_resident ||= (instance_eval &@@callbacks[:resident_id]).tap do |object|
                     raise Condo::Errors::LostTheKeys unless object.present?
                 end
             end
@@ -242,10 +266,8 @@ module Condo
                 Condo::Configuration.instance
             end
             
-        
-            #
+
             # Defines the default callbacks
-            #
             (@@callbacks ||= {}).merge! Condo::Configuration.callbacks
             @@namespace ||= :global
             

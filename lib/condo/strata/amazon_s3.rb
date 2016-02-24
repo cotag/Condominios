@@ -265,7 +265,7 @@ class Condo::Strata::AmazonS3
 		#
 		url << '?'
 		options[:object_options][:parameters].each do |key, value|
-			url += value.empty? ? "#{key}&" : "#{key}=#{value}&"
+			url += value.blank? ? "#{key}&" : "#{key}=#{value}&"
 		end
 		url.chop!
 		
@@ -282,7 +282,7 @@ class Condo::Strata::AmazonS3
 		#
 		# Encode the request signature
 		#
-		signature = CGI::escape(Base64.encode64(OpenSSL::HMAC.digest(OpenSSL::Digest::Digest.new('sha1'), @options[:secret_key], signature)).gsub("\n",""))
+		signature = CGI::escape(Base64.encode64(OpenSSL::HMAC.digest(OpenSSL::Digest.new('sha1'), @options[:secret_key], signature)).gsub("\n",""))
 		
 		
 		#

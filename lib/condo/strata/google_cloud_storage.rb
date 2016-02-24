@@ -254,7 +254,7 @@ DATA
             if ['acl', 'cors', 'location', 'logging', 'requestPayment', 'torrent', 'versions', 'versioning'].include?(key)
 				signed_params << "#{key}&"
 			else
-				other_params << (value.empty? ? "#{key}&" : "#{key}=#{value}&")
+				other_params << (value.blank? ? "#{key}&" : "#{key}=#{value}&")
             end
 		end
 		signed_params.chop!
@@ -289,7 +289,7 @@ DATA
 		# Encode the request signature
 		#
 		if @options[:api] == 1
-			signature = Base64.encode64(OpenSSL::HMAC.digest(OpenSSL::Digest::Digest.new('sha1'), @options[:secret_key], signature)).gsub("\n","")
+			signature = Base64.encode64(OpenSSL::HMAC.digest(OpenSSL::Digest.new('sha1'), @options[:secret_key], signature)).gsub("\n","")
 			options[:object_options][:headers]['Authorization'] = "GOOG1 #{@options[:access_id]}:#{signature}"
 		else
 			signature = Base64.encode64(@options[:secret_key].sign(OpenSSL::Digest::SHA256.new, signature)).gsub("\n","")
