@@ -1,3 +1,4 @@
+require 'fog'
 require 'condo/engine'
 require 'condo/errors'
 require 'condo/configuration'
