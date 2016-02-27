@@ -167,6 +167,10 @@ class Condo::Strata::RackspaceCloudFiles
 
         request = {}
         if options[:part] == 'finish'
+=begin
+Dynamic large object now have to be created on the server...
+This is how that was done. We now use Static Large Objects that can be created client side
+
             key = CGI::escape options[:object_key]
 
             # Send the commitment request
@@ -180,20 +184,30 @@ class Condo::Strata::RackspaceCloudFiles
             )
 
             return {}
+=end
+
+            options[:object_options][:headers]['ETag'] = options[:file_id] if options[:file_id].present?
+            options[:object_options][:headers]['Content-Type'] = 'application/json'
+            options[:object_key] = CGI::escape(options[:object_key])
+            request[:signature] = sign_request(options, '&multipart-manifest=put')
         else
             #
             # Send the part upload request
             #
             options[:object_options][:headers]['ETag'] = options[:file_id] if options[:file_id].present? && options[:object_options][:headers]['ETag'].nil?
             options[:object_options][:headers]['Content-Type'] = 'binary/octet-stream'
-            options[:object_key] = CGI::escape(options[:object_key]) + gen_part_ext(options[:file_size], options[:part])
+            object_key = CGI::escape(options[:object_key]) + gen_part_ext(options[:file_size], options[:part])
+            options[:object_key] = object_key
             request[:type] = :part_upload
+
+            # Required for static large objects
+            request[:path] = "#{CGI::escape options[:bucket_name]}/#{object_key}"
+            request[:signature] = sign_request(options)
         end
 
         #
         # provide the signed request
         #
-        request[:signature] = sign_request(options)
         request
     end
     
@@ -226,7 +240,7 @@ class Condo::Strata::RackspaceCloudFiles
     
     
     
-    def sign_request(options)
+    def sign_request(options, param = nil)
         
         #
         # Build base URL
@@ -253,7 +267,7 @@ class Condo::Strata::RackspaceCloudFiles
         #
         return {
             :verb => options[:object_options][:verb].to_s.upcase,
-            :url => "#{options[:http_only] ? 'http' : 'https'}://#{@options[:location]}#{url}?temp_url_sig=#{signature}&temp_url_expires=#{options[:object_options][:expires]}",
+            :url => "#{options[:http_only] ? 'http' : 'https'}://#{@options[:location]}#{url}?temp_url_sig=#{signature}&temp_url_expires=#{options[:object_options][:expires]}#{param}",
             :headers => options[:object_options][:headers]
         }
     end
