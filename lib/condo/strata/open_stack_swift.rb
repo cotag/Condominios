@@ -7,13 +7,13 @@ module Condo::Strata; end
 # NOTE:: Set Account Metadata Key for Public Access before this will work - X-Account-Meta-Temp-Url-Key: <your key>
 #
 
-class Condo::Strata::RackspaceCloudFiles
+class Condo::Strata::OpenStackSwift
     
     MIN_CHUNK_SIZE = 2097152
     
     def initialize(options)
         @options = {
-            :name => :RackspaceCloudFiles,
+            :name => :OpenStackSwift,
             :location => :dfw,            # dallas or chicago    - this is set at bucket creation time
             :fog => {
                 :provider => 'Rackspace',
@@ -39,8 +39,8 @@ class Condo::Strata::RackspaceCloudFiles
         #raise ArgumentError, 'Rackspace Username missing' if @options[:username].nil?
         #raise ArgumentError, 'Rackspace Secret Key missing' if @options[:secret_key].nil?
         
-        raise ArgumentError, 'Rackspace Storage URL missing' if @options[:storage_url].nil?
-        raise ArgumentError, 'Rackspace Temp URL Key missing' if @options[:temp_url_key].nil?
+        raise ArgumentError, 'Swift Storage URL missing' if @options[:storage_url].nil?
+        raise ArgumentError, 'Swift Temp URL Key missing' if @options[:temp_url_key].nil?
         
         
         @options[:location] = @options[:location].to_sym
