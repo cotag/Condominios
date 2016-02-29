@@ -20,8 +20,6 @@ module Condo
 		initializer "condo initializer" do |app|
 			
 			config.after_initialize do
-				Rails.application.config.assets.precompile += ['condo/md5/hash.worker.js', 'condo/md5/hash.worker.emulator.js']
-				
 				responses = {
 					"Condo::Errors::MissingFurniture" => :not_found,
 					"Condo::Errors::LostTheKeys" => :forbidden,
