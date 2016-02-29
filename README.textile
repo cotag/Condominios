@@ -3,6 +3,7 @@ h1. Condominios aka Condo
 A "Rails plugin":http://guides.rubyonrails.org/plugins.html and "AngularJS application":http://angularjs.org/ that makes direct uploads to multiple cloud storage providers easy.
 Only supports "XMLHttpRequest Level 2":http://en.wikipedia.org/wiki/XMLHttpRequest capable browsers and cloud providers that have a "RESTful API":http://en.wikipedia.org/wiki/Representational_state_transfer with "CORS":http://en.wikipedia.org/wiki/Cross-origin_resource_sharing support.
 
+
 Why compromise?
 
 Get started now: @gem install condo@ or checkout the "example application":https://github.com/cotag/condo_example
@@ -22,18 +23,23 @@ The API is RESTful, providing an abstraction layer and signed URLs that can be u
 The main advantages are:
 * Off-loads processing to client machines
 * Better guarantees against upload corruption
-** file hashing on the client side instead of an intermediary where it probably won't be hashed either
-* Upload results are guaranteed if the cloud provider provides atomic operations
+** file hashing on the client side
+* Upload results are guaranteed
 ** user is always aware of any failures in the process
 * Detailed progress and control over the upload
  
 This has numerous advantages over traditional Form Data style post uploads too.
 * Progress bars
 * Resumability when uploading large files
+* Optional parallel uploads (multiple parts of the file simultaneously)
 
 
 Support for all major browsers
-* Tested in Firefox latest stable, Chromes latest stable, Safari 6, Opera 12 and IE10
+* Chrome
+* Firefox
+* Safari
+* Opera
+* IE10+
 
 
 h2. Usage
@@ -88,12 +94,11 @@ In an initialiser do the following:
 
 <pre><code class="ruby">
 Condo::Configuration.add_residence(:AmazonS3, {
-	:access_id => ENV['S3_KEY'],
-	:secret_key => ENV['S3_SECRET']
-	# :location => 'us-west-1'	# or 'ap-southeast-1' etc (see http://docs.amazonwebservices.com/general/latest/gr/rande.html#s3_region)
-								# Defaults to 'us-east-1' or US Standard - not required for Google
-	# :namespace => :admin_resident	# Allows you to assign different defaults to different controllers
-									# Controller must have the following line 'set_namespace :admin_resident'
+    :access_id => ENV['S3_KEY'],
+    :secret_key => ENV['S3_SECRET']
+    # :location => 'us-west-1'    # or 'ap-southeast-1' etc (see http://docs.amazonwebservices.com/general/latest/gr/rande.html#s3_region)
+                                # Defaults to 'us-east-1' or US Standard - not required for Google
+    # :namespace => :admin_resident    # Allows you to assign different defaults to different controllers or users etc
 })
 
 </code></pre>
@@ -102,32 +107,14 @@ The first residence to be defined in a namespace will be the default. To change 
 Currently available residencies:
 * :AmazonS3
 * :GoogleCloudStorage
-* :RackspaceCloudFiles
+* :RackspaceCloudFiles (Works with Swift left as rackspace for backwards compatibility)
 
 
-You can also define a dynamic residence each request (maybe clients provided you with access information for their storage provider)
-
-<pre><code class="ruby">
-set_residence(:AmazonS3, {
-	:access_id => user.s3_key,
-	:secret_key => user.s3_secret,
-	:dynamic => true	# Otherwise the same as add_residence
-});
-	
-
-</code></pre>
+Note:: There is also a callback to dynamically set storage provider. Which is useful if your users use:
+* Their own bucket
+* Different cloud providers etc
 
 
 h3. Callbacks
 
-These are pretty well defined "here":https://github.com/cotag/condo_example/blob/master/app/controllers/uploads_controller.rb
-
-
-h2. TODO::
-
-# Write tests... So many tests
-# Create a wiki describing things in more detail
-# Implement API for more residencies
-# Sign other useful requests (bucket listings with search etc)
-#* For Dropbox or Megaupload style applications
-
+These are pretty well defined "here":https://github.com/cotag/Condominios/blob/master/lib/condo/configuration.rb
