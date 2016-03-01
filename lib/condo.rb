@@ -156,32 +156,47 @@ module Condo
                 # Complete an upload
                 upload = current_upload
 
-                if params[:resumable_id]
+                safe = params.permit(:resumable_id, {part_list: []}, {part_data: [
+                    :md5,
+                    :size_bytes,
+                    :path,
+                    :part
+                ]})
+                part_list = safe[:part_list]
+                resumable_id = safe[:resumable_id]
+
+                if resumable_id || part_list
                     if upload.resumable
-                        @current_upload = upload.update_entry resumable_id: params.permit(:resumable_id)[:resumable_id]
-                        edit
+                        if part_list
+                            upload.part_list = part_list || []
+
+                            # We incrementally update this as it might otherwise contain
+                            # sum(1 -> 10,000) parts over the time of the upload
+                            # (as is the case with the largest file amazon supports)
+                            if safe[:part_data]
+                                upload.part_data ||= {}
+                                safe[:part_data].each do |part|
+                                    upload.part_data[part[:part]] = part
+                                end
+                            end
+                        end
+
+                        upload.resumable_id = resumable_id if resumable_id
+                        upload.save!
+
+                        if params[:part_update]
+                            render nothing: true
+                        else
+                            @current_upload = upload
+
+                            # Render is called from edit
+                            edit
+                        end
                     else
                         render nothing: true, status: :not_acceptable
                     end
-                elsif params[:part_list]
-                    list = params.permit(:part_data, part_list: [])
-                    upload.part_list = params[:part_list] || []
 
-                    # We incrementally update this as it might otherwise contain
-                    # sum(1 -> 10,000) parts over the time of the upload
-                    # (as is the case with the largest file amazon supports)
-                    if params[:part_data]
-                        upload.part_data ||= {}
-                        upload.part_data = upload.part_data.merge(params[:part_data])
-                    end
-                    upload.save!
-
-                    if params[:part_update]
-                        render nothing: true
-                    else
-                        edit
-                    end
-                else
+                else # We are completeing the upload
                     response = instance_exec upload, &@@callbacks[:upload_complete]
                     if response
                         render nothing: true
