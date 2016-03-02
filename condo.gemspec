@@ -18,6 +18,7 @@ Gem::Specification.new do |s|
 
   s.add_dependency "rails"
   s.add_dependency "fog"
+  s.add_dependency "azure", '0.7.1'
 
-  s.add_development_dependency 'rspec', '>= 2.14'
+  s.add_development_dependency 'rspec', '~> 3.4'
 end

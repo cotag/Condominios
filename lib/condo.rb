@@ -7,6 +7,14 @@ require 'condo/configuration'
 
 
 module Condo
+    module Condo::Strata
+        autoload :AmazonS3,           File.expand_path('../condo/strata/amazon_s3', __FILE__)
+        autoload :GoogleCloudStorage, File.expand_path('../condo/strata/google_cloud_storage', __FILE__)
+        autoload :MicrosoftAzure,     File.expand_path('../condo/strata/microsoft_azure', __FILE__)
+        autoload :OpenStackSwift,     File.expand_path('../condo/strata/open_stack_swift', __FILE__)
+    end
+
+
     def self.included(base)
         base.class_eval do
 
