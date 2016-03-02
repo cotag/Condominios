@@ -8,8 +8,7 @@ module Condo::Strata; end
 #
 
 class Condo::Strata::OpenStackSwift
-
-    MIN_CHUNK_SIZE = 2097152
+    MIN_CHUNK_SIZE = 2.megabytes
 
     def initialize(options)
         @options = {

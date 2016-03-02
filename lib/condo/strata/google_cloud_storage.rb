@@ -75,7 +75,7 @@ DATA
             :headers  => {},
             :host       => "#{bucket}.storage.googleapis.com",
             :idempotent => true,
-            :path     => '?cors'    # There is an issue with Fog where this isn't included as a canonical_resource
+            :path     => '?cors'
         )
     end
 
@@ -190,7 +190,6 @@ DATA
     # Returns the requests for uploading parts and completing a resumable upload
     def set_part(options)
         resp = get_parts(options, true)
-        resp[:type] = :resume_upload
         resp[:type] = :resume_upload
         return resp
     end
