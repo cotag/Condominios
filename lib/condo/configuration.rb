@@ -8,10 +8,12 @@ module Condo
 
 
         @@callbacks = {
+            # Must be defined by the including class:
+            #:resident_id => proc
+            #:bucket_name => proc
+            #:upload_complete => proc
+            #:destroy_upload => proc
             #
-            #:resident_id        # Must be defined by the including class
-            #
-            :bucket_name => proc {"#{Rails.application.class.parent_name}#{instance_eval @@callbacks[:resident_id]}"},
             :object_key => proc { |upload|
                 if upload[:file_path]
                     upload[:file_path] + upload[:file_name]
@@ -42,8 +44,6 @@ module Condo
                 # upload will only be present if it already exists
                 config.residencies[0]
             }
-            #:upload_complete    # Must be defined by the including class
-            #:destroy_upload     # the actual delete should be done by the application
         }
 
         def self.callbacks
