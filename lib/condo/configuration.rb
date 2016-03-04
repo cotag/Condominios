@@ -1,12 +1,6 @@
-require 'singleton'
-
 
 module Condo
-
     class Configuration
-        include Singleton
-
-
         @@callbacks = {
             # Must be defined by the including class:
             #:resident_id => proc
