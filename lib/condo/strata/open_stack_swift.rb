@@ -66,7 +66,7 @@ class Condo::Strata::OpenStackSwift
     end
 
 
-    def allow_cors(domains = 'http://localhost:3000', options_age = 10, headers = 'etag, x-object-manifest, content-type, accept, origin, x-requested-with')
+    def allow_cors(domains = 'http://localhost:9000', options_age = 10, headers = 'etag, content-type, accept, origin, x-requested-with')
         fog_connection.request(
             :expects  => [201, 202, 204],
             :method   => 'POST',
@@ -152,29 +152,28 @@ class Condo::Strata::OpenStackSwift
 
         request = {}
         if options[:part] == 'finish'
-=begin
-Dynamic large object now have to be created on the server...
-This is how that was done. We now use Static Large Objects that can be created client side
+            # Dynamic large object now have to be created on the server...
+            # Static Large Objects could be created client side.
+            if @options[:use_static_large_objects]
+                options[:object_options][:headers]['ETag'] = options[:file_id] if options[:file_id].present?
+                options[:object_options][:headers]['Content-Type'] = 'text/plain'
+                options[:object_key] = CGI::escape(options[:object_key])
+                request[:signature] = sign_request(options, 'multipart-manifest=put&')
+            else
+                key = CGI::escape options[:object_key]
 
-            key = CGI::escape options[:object_key]
+                # Send the commitment request
+                fog_connection.request(
+                    :expects  => [200, 201],
+                    :method   => 'PUT',
+                    :headers  => {
+                        'X-Object-Manifest' => "#{CGI::escape options[:bucket_name]}/#{key}/p"
+                    },
+                    path: "#{CGI::escape options[:bucket_name]}/#{key}"
+                )
 
-            # Send the commitment request
-            fog_connection.request(
-                :expects  => [200, 201],
-                :method   => 'PUT',
-                :headers  => {
-                    'X-Object-Manifest' => "#{CGI::escape options[:bucket_name]}/#{key}/p"
-                },
-                path: "#{CGI::escape options[:bucket_name]}/#{key}"
-            )
-
-            return {}
-=end
-
-            options[:object_options][:headers]['ETag'] = options[:file_id] if options[:file_id].present?
-            options[:object_options][:headers]['Content-Type'] = 'application/json'
-            options[:object_key] = CGI::escape(options[:object_key])
-            request[:signature] = sign_request(options, '&multipart-manifest=put')
+                return {}
+            end
         else
             # Send the part upload request
             options[:object_options][:headers]['ETag'] = options[:file_id] if options[:file_id].present? && options[:object_options][:headers]['ETag'].nil?
@@ -235,7 +234,7 @@ This is how that was done. We now use Static Large Objects that can be created c
         # Finish building the request
         return {
             :verb => options[:object_options][:verb].to_s.upcase,
-            :url => "#{options[:http_only] ? 'http' : 'https'}://#{@options[:location]}#{url}?temp_url_sig=#{signature}&temp_url_expires=#{options[:object_options][:expires]}#{param}",
+            :url => "#{options[:http_only] ? 'http' : 'https'}://#{@options[:location]}#{url}?#{param}temp_url_sig=#{signature}&temp_url_expires=#{options[:object_options][:expires]}",
             :headers => options[:object_options][:headers]
         }
     end
