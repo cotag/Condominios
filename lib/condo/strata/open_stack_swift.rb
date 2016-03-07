@@ -13,30 +13,39 @@ class Condo::Strata::OpenStackSwift
     def initialize(options)
         @options = {
             :name => :OpenStackSwift,
-            :location => :dfw,            # dallas or chicago    - this is set at bucket creation time
+            :location => :dfw,
             :fog => {
-                :provider => 'Rackspace',
-                :rackspace_username => options[:username],
-                :rackspace_api_key => options[:secret_key],
-                :rackspace_cdn_url => options[:rackspace_cdn_url],
-                :rackspace_temp_url_key => options[:temp_url_key],
-                :rackspace_auth_url => options[:auth_url] || 'https://identity.api.rackspacecloud.com/v2.0' # is US and UK is 'lon.auth.api.rackspacecloud.com'
+                :provider => 'OpenStack',
+                :openstack_username => options[:username],
+                :openstack_api_key => options[:secret_key],
+                :openstack_temp_url_key => options[:temp_url_key],
+                :openstack_auth_url => options[:auth_url] || 'https://identity.api.rackspacecloud.com/v2.0/tokens' # is US and UK is 'lon.auth.api.rackspacecloud.com'
             }
         }.merge!(options)
 
         case @options[:location]
             when :dfw, :dallas, :DFW
-                @options[:location] = 'storage101.dfw1.clouddrive.com'
-                @options[:fog][:rackspace_region] = :dfw
+                @options[:location] = 'https://storage101.dfw1.clouddrive.com'
+                @options[:fog][:openstack_region] = 'DFW'
             when :ord, :chicago, :ORD
-                @options[:location] = 'storage101.ord1.clouddrive.com'
-                @options[:fog][:rackspace_region] = :ord
-            else @options[:location]
+                @options[:location] = 'https://storage101.ord1.clouddrive.com'
+                @options[:fog][:openstack_region] = 'ORD'
+            when :iad, :virginia, :IAD
+                @options[:location] = 'https://storage101.iad1.clouddrive.com'
+                @options[:fog][:openstack_region] = 'IAD'
+            when :lon, :london, :LON
+                @options[:location] = 'https://storage101.lon1.clouddrive.com'
+                @options[:fog][:openstack_region] = 'LON'
+            when :syd, :sydney, :SYD
+                @options[:location] = 'https://storage101.syd1.clouddrive.com'
+                @options[:fog][:openstack_region] = 'SYD'
+            when :hkg, :hong_kong, :HKG
+                @options[:location] = 'https://storage101.hkg1.clouddrive.com'
+                @options[:fog][:openstack_region] = 'HKG'
+            else
+                @options[:fog][:openstack_management_url] = "#{@options[:location]}/v1/#{@options[:storage_url]}"
         end
 
-
-        #raise ArgumentError, 'Rackspace Username missing' if @options[:username].nil?
-        #raise ArgumentError, 'Rackspace Secret Key missing' if @options[:secret_key].nil?
 
         raise ArgumentError, 'Swift Storage URL missing' if @options[:storage_url].nil?
         raise ArgumentError, 'Swift Temp URL Key missing' if @options[:temp_url_key].nil?
@@ -203,8 +212,14 @@ class Condo::Strata::OpenStackSwift
         directory = connection.directories.get(upload.bucket_name)    # it is assumed this exists - if not then the upload wouldn't have taken place
 
         if upload.resumable
-            directory.files.all({'prefix' => upload.object_key}).each do |file|
-                return false unless file.destroy
+            begin
+                directory.files.all({'prefix' => upload.object_key}).each do |file|
+                    begin
+                        return false unless file.destroy
+                    rescue ::Fog::Storage::OpenStack::NotFound => e
+                    end
+                end
+            rescue ::Fog::Storage::OpenStack::NotFound => e
             end
         end
 
@@ -234,7 +249,7 @@ class Condo::Strata::OpenStackSwift
         # Finish building the request
         return {
             :verb => options[:object_options][:verb].to_s.upcase,
-            :url => "#{options[:http_only] ? 'http' : 'https'}://#{@options[:location]}#{url}?#{param}temp_url_sig=#{signature}&temp_url_expires=#{options[:object_options][:expires]}",
+            :url => "#{@options[:location]}#{url}?#{param}temp_url_sig=#{signature}&temp_url_expires=#{options[:object_options][:expires]}",
             :headers => options[:object_options][:headers]
         }
     end
