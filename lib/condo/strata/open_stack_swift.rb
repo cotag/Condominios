@@ -176,7 +176,8 @@ class Condo::Strata::OpenStackSwift
                     :expects  => [200, 201],
                     :method   => 'PUT',
                     :headers  => {
-                        'X-Object-Manifest' => "#{CGI::escape options[:bucket_name]}/#{key}/p"
+                        'X-Object-Manifest' => "#{CGI::escape options[:bucket_name]}/#{key}/p",
+                        'Content-Type' => options[:object_options][:headers]['Content-Type'] || 'binary/octet-stream'
                     },
                     path: "#{CGI::escape options[:bucket_name]}/#{key}"
                 )
@@ -227,6 +228,42 @@ class Condo::Strata::OpenStackSwift
 
         return true if file.nil?
         return file.destroy
+    end
+
+
+    SEGMENT_LIMIT = 5.gigabyte - 1
+    BUFFER_SIZE = 1.megabyte
+
+    def filesize_limit
+        SEGMENT_LIMIT
+    end
+
+    def large_upload(bucket, filename, file, mime = nil)
+        service = fog_connection
+        segment = 0
+
+        until file.eof?
+            segment += 1
+            offset = 0
+
+            # upload segment to cloud files
+            segment_suffix = segment.to_s.rjust(10, '0')
+            service.put_object(bucket, "#{filename}/#{segment_suffix}", nil) do
+                if offset <= SEGMENT_LIMIT - BUFFER_SIZE
+                    buf = file.read(BUFFER_SIZE).to_s
+                    offset += buf.size
+                    buf
+                else
+                    ''
+                end
+            end
+        end
+
+        # write manifest file
+        service.put_object_manifest(bucket, filename, {
+            'X-Object-Manifest' => "#{bucket}/#{filename}/",
+            'Content-Type' => mime || 'binary/octet-stream'
+        })
     end
 
 

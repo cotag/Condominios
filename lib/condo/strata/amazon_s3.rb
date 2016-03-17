@@ -149,13 +149,13 @@ class Condo::Strata::AmazonS3
         request = {}
         if options[:part] == 'finish'
             # Send the commitment response
-            options[:object_options][:headers]['Content-Type'] = 'application/xml; charset=UTF-8' if options[:object_options][:headers]['Content-Type'].nil?
+            options[:object_options][:headers]['Content-Type'] = 'application/xml; charset=UTF-8'
             options[:object_options][:verb] = :post
             request[:type] = :finish
         else
             # Send the part upload request
             options[:object_options][:headers]['Content-Md5'] = options[:file_id] if options[:file_id].present? && options[:object_options][:headers]['Content-Md5'].nil?
-            options[:object_options][:headers]['Content-Type'] = 'binary/octet-stream' if options[:object_options][:headers]['Content-Type'].nil?
+            options[:object_options][:headers]['Content-Type'] = 'binary/octet-stream'
             options[:object_options][:parameters]['partNumber'] = options[:part]
             options[:object_options][:verb] = :put
             request[:type] = :part_upload
