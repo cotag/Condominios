@@ -1,5 +1,7 @@
 # encoding: utf-8
 
+require 'uri'
+
 module Condo; end
 module Condo::Strata; end
 
@@ -12,14 +14,14 @@ class Condo::Strata::OpenStackSwift
 
     def initialize(options)
         @options = {
-            :name => :OpenStackSwift,
-            :location => :dfw,
-            :fog => {
-                :provider => 'OpenStack',
-                :openstack_username => options[:username],
-                :openstack_api_key => options[:secret_key],
-                :openstack_temp_url_key => options[:temp_url_key],
-                :openstack_auth_url => options[:auth_url] || 'https://identity.api.rackspacecloud.com/v2.0/tokens' # is US and UK is 'lon.auth.api.rackspacecloud.com'
+            name: :OpenStackSwift,
+            location: :dfw,
+            fog: {
+                provider: 'OpenStack',
+                openstack_username: options[:username],
+                openstack_api_key: options[:secret_key],
+                openstack_temp_url_key: options[:temp_url_key],
+                openstack_auth_url: options[:auth_url] || 'https://identity.api.rackspacecloud.com/v2.0/tokens' # is US and UK is 'lon.auth.api.rackspacecloud.com'
             }
         }.merge!(options)
 
@@ -64,22 +66,26 @@ class Condo::Strata::OpenStackSwift
         @options[:location]
     end
 
+    def scheme
+        @options[:scheme] || URI.parse(@options[:fog][:openstack_auth_url]).scheme
+    end
+
 
     # Here for convenience 
     def set_metadata_key(key)
         fog_connection.request(
-            :expects  => [201, 202, 204],
-            :method   => 'POST',
-            :headers  => {'X-Account-Meta-Temp-Url-Key' => key}
+            expects: [201, 202, 204],
+            method:  'POST',
+            headers: {'X-Account-Meta-Temp-Url-Key' => key}
         )
     end
 
 
     def allow_cors(domains = 'http://localhost:9000', options_age = 10, headers = 'etag, content-type, accept, origin, x-requested-with')
         fog_connection.request(
-            :expects  => [201, 202, 204],
-            :method   => 'POST',
-            :headers  => {
+            expects: [201, 202, 204],
+            method:  'POST',
+            headers: {
                 'X-Container-Meta-Access-Control-Allow-Origin' => domains,
                 'X-Container-Meta-Access-Control-Max-Age' => options_age,
                 'X-Container-Meta-Access-Control-Allow-Headers' => headers
@@ -92,10 +98,10 @@ class Condo::Strata::OpenStackSwift
     def get_object(options)
         options = {}.merge!(options)    # Need to deep copy here
         options[:object_options] = {
-            :expires => 5.minutes.from_now,
-            :verb => :get,
-            :headers => {},
-            :parameters => {}
+            expires: 5.minutes.from_now,
+            verb: :get,
+            headers: {},
+            parameters: {}
         }.merge!(options[:object_options] || {})
         options.merge!(@options)
 
@@ -109,10 +115,10 @@ class Condo::Strata::OpenStackSwift
     def new_upload(options)
         options = {}.merge!(options)    # Need to deep copy here
         options[:object_options] = {
-            :expires => 5.minutes.from_now,
-            :verb => :put,
-            :headers => {},
-            :parameters => {}
+            expires: 5.minutes.from_now,
+            verb: :put,
+            headers: {},
+            parameters: {}
         }.merge!(options[:object_options])
         options.merge!(@options)
 
@@ -141,9 +147,9 @@ class Condo::Strata::OpenStackSwift
     # Returns the part we are up to
     def get_parts(options)
         {
-            :type => :parts,
+            type: :parts,
             # NOTE:: This is legacy V1 - before parallel uploads
-            :current_part => options[:resumable_id]
+            current_part: options[:resumable_id]
         }
     end
 
@@ -151,10 +157,10 @@ class Condo::Strata::OpenStackSwift
     # Returns the requests for uploading parts and completing a resumable upload
     def set_part(options)
         options[:object_options] = {
-            :expires => 5.minutes.from_now,
-            :headers => {},
-            :parameters => {},
-            :verb => :put
+            expires: 5.minutes.from_now,
+            headers: {},
+            parameters: {},
+            verb: :put
         }.merge!(options[:object_options])
         options.merge!(@options)
 
@@ -173,9 +179,9 @@ class Condo::Strata::OpenStackSwift
 
                 # Send the commitment request
                 fog_connection.request(
-                    :expects  => [200, 201],
-                    :method   => 'PUT',
-                    :headers  => {
+                    expects: [200, 201],
+                    method:  'PUT',
+                    headers: {
                         'X-Object-Manifest' => "#{CGI::escape options[:bucket_name]}/#{key}/p",
                         'Content-Type' => options[:object_options][:headers]['Content-Type'] || 'binary/octet-stream'
                     },
@@ -285,9 +291,9 @@ class Condo::Strata::OpenStackSwift
 
         # Finish building the request
         return {
-            :verb => options[:object_options][:verb].to_s.upcase,
-            :url => "#{@options[:location]}#{url}?#{param}temp_url_sig=#{signature}&temp_url_expires=#{options[:object_options][:expires]}",
-            :headers => options[:object_options][:headers]
+            verb: options[:object_options][:verb].to_s.upcase,
+            url: "#{@options[:location]}#{url}?#{param}temp_url_sig=#{signature}&temp_url_expires=#{options[:object_options][:expires]}",
+            headers: options[:object_options][:headers]
         }
     end
 
