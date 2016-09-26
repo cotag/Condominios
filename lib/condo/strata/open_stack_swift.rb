@@ -73,7 +73,7 @@ class Condo::Strata::OpenStackSwift
 
     # Here for convenience 
     def set_metadata_key(key)
-        fog_connection.request(
+        fog_connection.__send__(:request,
             expects: [201, 202, 204],
             method:  'POST',
             headers: {'X-Account-Meta-Temp-Url-Key' => key}
@@ -82,7 +82,7 @@ class Condo::Strata::OpenStackSwift
 
 
     def allow_cors(domains = 'http://localhost:9000', options_age = 10, headers = 'etag, content-type, accept, origin, x-requested-with')
-        fog_connection.request(
+        fog_connection.__send__(:request,
             expects: [201, 202, 204],
             method:  'POST',
             headers: {
@@ -178,7 +178,7 @@ class Condo::Strata::OpenStackSwift
                 key = CGI::escape options[:object_key]
 
                 # Send the commitment request
-                fog_connection.request(
+                fog_connection.__send__(:request,
                     expects: [200, 201],
                     method:  'PUT',
                     headers: {
