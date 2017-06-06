@@ -16,9 +16,9 @@ Gem::Specification.new do |s|
   s.files = Dir["{app,config,db,lib}/**/*"] + ["LGPL3-LICENSE", "Rakefile", "README.textile"]
   s.test_files = Dir["test/**/*"]
 
-  s.add_dependency "rails"
-  s.add_dependency "fog"
-  s.add_dependency "azure", '0.7.1'
+  s.add_dependency 'rails'
+  s.add_dependency 'fog'
+  s.add_dependency 'azure', '~> 0.7.9'
 
   s.add_development_dependency 'rspec', '~> 3.4'
 end
