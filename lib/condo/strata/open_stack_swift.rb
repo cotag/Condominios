@@ -155,7 +155,7 @@ class Condo::Strata::OpenStackSwift
 
 
     # Returns the requests for uploading parts and completing a resumable upload
-    def set_part(options)
+    def set_part(options, retries = 0)
         options[:object_options] = {
             expires: 5.minutes.from_now,
             headers: {},
@@ -175,18 +175,31 @@ class Condo::Strata::OpenStackSwift
                 options[:object_key] = CGI::escape(options[:object_key])
                 request[:signature] = sign_request(options, 'multipart-manifest=put&')
             else
-                key = CGI::escape options[:object_key]
+                key = CGI::escape(options[:object_key])
+                bname = CGI::escape(options[:bucket_name])
 
                 # Send the commitment request
                 fog_connection.__send__(:request,
                     expects: [200, 201],
                     method:  'PUT',
                     headers: {
-                        'X-Object-Manifest' => "#{CGI::escape options[:bucket_name]}/#{key}/p",
+                        'X-Object-Manifest' => "#{bname}/#{key}/p",
                         'Content-Type' => options[:object_options][:headers]['Content-Type'] || 'binary/octet-stream'
                     },
-                    path: "#{CGI::escape options[:bucket_name]}/#{key}"
+                    path: "#{bname}/#{key}"
                 )
+
+                # Sometimes this request fails to actually find the uploaded parts
+                # This ensures that our final object has a length
+                bucket = fog_connection.directories.get(bname)
+                file = bucket.files.head(key)
+                if file.content_length == 0
+                    if retries < 3
+                        set_part(options, retries + 1)
+                    else
+                        raise "file manifest creation failed for #{options[:bucket_name]}/#{key}"
+                    end
+                end
 
                 return {}
             end
@@ -209,7 +222,7 @@ class Condo::Strata::OpenStackSwift
 
 
     def fog_connection
-        @fog = @fog || Fog::Storage.new(@options[:fog])
+        @fog ||= Fog::Storage.new(@options[:fog])
         return @fog
     end
 
