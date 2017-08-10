@@ -73,11 +73,7 @@ class Condo::Strata::OpenStackSwift
 
     # Here for convenience 
     def set_metadata_key(key)
-        fog_connection.__send__(:request,
-            expects: [201, 202, 204],
-            method:  'POST',
-            headers: {'X-Account-Meta-Temp-Url-Key' => key}
-        )
+        fog_connection.post_set_meta_temp_url_key(key)
     end
 
 
@@ -177,21 +173,18 @@ class Condo::Strata::OpenStackSwift
             else
                 key = CGI::escape(options[:object_key])
                 bname = CGI::escape(options[:bucket_name])
+                service = fog_connection
+                mime = options[:object_options][:headers]['Content-Type']
 
                 # Send the commitment request
-                fog_connection.__send__(:request,
-                    expects: [200, 201],
-                    method:  'PUT',
-                    headers: {
-                        'X-Object-Manifest' => "#{bname}/#{key}/p",
-                        'Content-Type' => options[:object_options][:headers]['Content-Type'] || 'binary/octet-stream'
-                    },
-                    path: "#{bname}/#{key}"
-                )
+                service.put_object_manifest(bname, key, {
+                    'X-Object-Manifest' => "#{bname}/#{key}/p",
+                    'Content-Type' => mime || 'binary/octet-stream'
+                })
 
                 # Sometimes this request fails to actually find the uploaded parts
                 # This ensures that our final object has a length
-                bucket = fog_connection.directories.get(bname)
+                bucket = service.directories.get(bname)
                 file = bucket.files.head(key)
                 if file.content_length == 0
                     if retries < 3
