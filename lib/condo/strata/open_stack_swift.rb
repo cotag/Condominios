@@ -253,10 +253,10 @@ class Condo::Strata::OpenStackSwift
     def large_upload(bucket, filename, file, mime = nil)
         service = fog_connection
         segment = 0
+        offset = 0
 
         until file.eof?
             segment += 1
-            offset = 0
 
             # upload segment to cloud files
             segment_suffix = segment.to_s.rjust(10, '0')
@@ -274,7 +274,7 @@ class Condo::Strata::OpenStackSwift
         # write manifest file
         service.put_object_manifest(bucket, filename, {
             'X-Object-Manifest' => "#{bucket}/#{filename}/",
-            'Content-Type' => mime || 'binary/octet-stream'
+            'Content-Type' => (mime || 'binary/octet-stream')
         })
     end
 
