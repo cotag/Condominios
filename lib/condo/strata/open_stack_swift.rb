@@ -255,18 +255,27 @@ class Condo::Strata::OpenStackSwift
         segment = 0
         offset = 0
 
+        dir = service.directories.get(bucket)
+
         until file.eof?
             segment += 1
 
             # upload segment to cloud files
             segment_suffix = segment.to_s.rjust(10, '0')
-            service.put_object(bucket, "#{filename}/#{segment_suffix}", nil) do
+            segment_name = "#{filename}/#{segment_suffix}"
+            service.put_object(bucket, segment_name, nil) do
                 if offset <= SEGMENT_LIMIT - BUFFER_SIZE
                     buf = file.read(BUFFER_SIZE).to_s
                     offset += buf.size
                     buf
                 else
                     ''
+                end
+            end
+
+            if buf_size > 0
+                while dir.files.head(segment_name).nil?
+                    sleep 0.2
                 end
             end
         end
