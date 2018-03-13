@@ -82,6 +82,7 @@ class Condo::Strata::MicrosoftAzure
                 type: :chunked_upload
             }
         else
+            options[:object_options][:headers]['Content-Md5'] = options[:file_id] if options[:file_id].present? && options[:object_options][:headers]['Content-Md5'].nil?
             return {
                 signature: sign_request(options),
                 type: :direct_upload
@@ -141,6 +142,45 @@ class Condo::Strata::MicrosoftAzure
         blobs.delete_blob(upload.bucket_name, upload.object_key)
     end
 
+    BUFFER_SIZE = 2.megabyte
+
+    # Always use the large upload function
+    def filesize_limit
+        0
+    end
+
+    Store = ::Struct.new(:public_url)
+
+    def large_upload(bucket, filename, file, mime = nil)
+        service = azure_connection
+        segment = 0
+        offset = 0
+
+        # Create the ref
+        service.create_block_blob(bucket, filename, nil, {content_type: mime, blob_content_type: mime})
+        parts = []
+
+        # Upload the parts
+        until file.eof?
+            segment += 1
+
+            # upload segment to cloud files
+            segment_suffix = segment.to_s.rjust(10, '0')
+            segment_name = "#{filename}_#{segment_suffix}"
+            parts << [segment_name]
+
+            buf = file.read(BUFFER_SIZE).to_s
+
+            if buf && !buf.empty?
+                service.create_blob_block(bucket, filename, segment_name, buf)
+            end
+        end
+
+        # Commit the blob
+        service.commit_blob_blocks(bucket, filename, parts, {blob_content_type: mime})
+
+        Store.new("#{@options[:blob_host]}/#{bucket}/#{filename}")
+    end
 
 
     protected
@@ -156,8 +196,6 @@ class Condo::Strata::MicrosoftAzure
             expires: 5.minutes.from_now
         }.merge!(options[:object_options] || {})
         options.merge!(@options)
-
-        options[:object_options][:headers]['Content-Md5'] = options[:file_id] if options[:file_id].present? && options[:object_options][:headers]['Content-Md5'].nil?
         options
     end
 
@@ -166,7 +204,7 @@ class Condo::Strata::MicrosoftAzure
         url = URI "#{@options[:blob_host]}/#{options[:bucket_name]}/#{options[:object_key]}"
         url = signer.signed_uri(url, {
             permissions: options[:object_options][:permission],
-            expires: options[:object_options][:expires].utc.iso8601,
+            expiry: options[:object_options][:expires].utc.iso8601,
             resource: 'b'
         })
 
