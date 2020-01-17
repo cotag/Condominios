@@ -17,8 +17,11 @@ Gem::Specification.new do |s|
   s.test_files = Dir["test/**/*"]
 
   s.add_dependency 'rails'
-  s.add_dependency 'fog'
+  s.add_dependency 'fog-aws'
+  s.add_dependency 'fog-google'
+  s.add_dependency 'fog-openstack'
   s.add_dependency 'azure', '~> 0.7.9'
+  s.add_dependency 'unf'   # prevents warning about amazon keys
 
-  s.add_development_dependency 'rspec', '~> 3.4'
+  s.add_development_dependency 'rspec'
 end

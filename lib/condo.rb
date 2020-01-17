@@ -1,6 +1,10 @@
 # encoding: utf-8
 
-require 'fog'
+require 'unf'
+require 'fog/aws'
+require 'fog/google'
+require 'fog/openstack'
+require 'azure'
 require 'condo/engine'
 require 'condo/errors'
 require 'condo/configuration'
@@ -34,7 +38,7 @@ module Condo
                 @upload[:file_path] = @@callbacks[:sanitize_filepath].call(permitted[:file_path]) if permitted[:file_path]
 
                 valid, errors = instance_exec(@upload, &@@callbacks[:pre_validation])       # Ensure the upload request is valid before uploading
-                
+
                 if valid
                     residence = current_residence
 
@@ -92,7 +96,7 @@ module Condo
                             file_id: upload.file_id
                         })
                     end
-                    
+
                     render json: request.merge!({
                         upload_id: upload.id,
                         residence: residence.name
@@ -117,7 +121,7 @@ module Condo
                         # => This should throw an error on failure
                         upload = condo_backend.add_entry(@upload.merge!({provider_name: residence.name, provider_location: residence.location, resumable: resumable}))
                         render json: request.merge!(upload_id: upload.id, residence: residence.name)
-                        
+
                     elsif errors.is_a? Hash
                         render json: errors, status: :not_acceptable
                     else
