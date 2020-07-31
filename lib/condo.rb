@@ -46,7 +46,7 @@ module Condo
                 elsif errors.is_a? Hash
                     render json: errors, status: :not_acceptable
                 else
-                    render nothing: true, status: :not_acceptable
+                    head :not_acceptable
                 end
             end
 
@@ -125,7 +125,7 @@ module Condo
                     elsif errors.is_a? Hash
                         render json: errors, status: :not_acceptable
                     else
-                        render nothing: true, status: :not_acceptable
+                        head :not_acceptable
                     end
                 end
             end
@@ -154,7 +154,7 @@ module Condo
 
                     render json: request.merge!(upload_id: upload.id)
                 else
-                    render nothing: true, status: :not_acceptable
+                    head :not_acceptable
                 end
             end
 
@@ -197,7 +197,7 @@ module Condo
                         upload.save!
 
                         if params[:part_update]
-                            render nothing: true
+                            head :ok
                         else
                             @current_upload = upload
 
@@ -205,15 +205,15 @@ module Condo
                             edit
                         end
                     else
-                        render nothing: true, status: :not_acceptable
+                        head :not_acceptable
                     end
 
                 else # We are completeing the upload
                     response = instance_exec upload, &@@callbacks[:upload_complete]
                     if response
-                        render nothing: true
+                        head :ok
                     else
-                        render nothing: true, status: :not_acceptable
+                        head :not_acceptable
                     end
                 end
             end
@@ -222,9 +222,9 @@ module Condo
                 # Delete the file from the cloud system - the client is not responsible for this
                 response = instance_exec current_upload, &@@callbacks[:destroy_upload]
                 if response
-                    render nothing: true
+                    head :ok
                 else
-                    render nothing: true, status: :not_acceptable
+                    head :not_acceptable
                 end
             end
 
