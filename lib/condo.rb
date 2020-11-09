@@ -80,7 +80,7 @@ module Condo
                         request = residence.get_parts({
                             bucket_name: upload.bucket_name,
                             object_key: upload.object_key,
-                            object_options: upload.object_options,
+                            object_options: upload.object_options.deep_symbolize_keys,
                             file_size: upload.file_size,
                             resumable_id: upload.resumable_id
                         })
@@ -91,7 +91,7 @@ module Condo
                         request = residence.new_upload({
                             bucket_name: upload.bucket_name,
                             object_key: upload.object_key,
-                            object_options: upload.object_options,
+                            object_options: upload.object_options.deep_symbolize_keys,
                             file_size: upload.file_size,
                             file_id: upload.file_id
                         })
@@ -144,7 +144,7 @@ module Condo
                     request = residence.set_part({
                         bucket_name: upload.bucket_name,
                         object_key: upload.object_key,
-                        object_options: upload.object_options,
+                        object_options: upload.object_options.deep_symbolize_keys,
                         resumable_id: upload.resumable_id,
                         # part may be called 'finish' for commit signature
                         part: safe_params[:part],
