@@ -392,7 +392,7 @@ GEM
     systemu (2.6.5)
     thor (0.20.3)
     thread_safe (0.3.6)
-    tzinfo (1.2.9)
+    tzinfo (1.2.10)
       thread_safe (~> 0.1)
     uber (0.1.0)
     unf (0.1.4)
