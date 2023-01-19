@@ -84,7 +84,7 @@ GEM
       faraday_middleware (~> 0.10)
       nokogiri (~> 1.6)
     builder (3.2.4)
-    concurrent-ruby (1.1.8)
+    concurrent-ruby (1.1.10)
     crass (1.0.6)
     declarative (0.0.20)
     declarative-option (0.1.0)
@@ -259,8 +259,8 @@ GEM
       fog-core
       nokogiri (>= 1.5.11, < 2.0.0)
     formatador (0.2.5)
-    globalid (0.4.2)
-      activesupport (>= 4.2.0)
+    globalid (1.0.1)
+      activesupport (>= 5.0)
     google-api-client (0.23.9)
       addressable (~> 2.5, >= 2.5.1)
       googleauth (>= 0.5, < 0.7.0)
@@ -280,7 +280,7 @@ GEM
     http-cookie (1.0.3)
       domain_name (~> 0.5)
     httpclient (2.8.3)
-    i18n (1.8.9)
+    i18n (1.12.0)
       concurrent-ruby (~> 1.0)
     ipaddress (0.8.3)
     json (2.3.1)
@@ -302,7 +302,7 @@ GEM
       rake
     mini_mime (1.0.2)
     mini_portile2 (2.8.0)
-    minitest (5.14.4)
+    minitest (5.17.0)
     multi_json (1.15.0)
     multipart-post (2.1.1)
     netrc (0.11.0)
@@ -392,7 +392,7 @@ GEM
     systemu (2.6.5)
     thor (0.20.3)
     thread_safe (0.3.6)
-    tzinfo (1.2.9)
+    tzinfo (1.2.10)
       thread_safe (~> 0.1)
     uber (0.1.0)
     unf (0.1.4)
@@ -403,7 +403,7 @@ GEM
     websocket-extensions (0.1.5)
     xml-simple (1.1.5)
     xmlrpc (0.3.0)
-    zeitwerk (2.4.2)
+    zeitwerk (2.6.6)
 
 PLATFORMS
   ruby
